@@ -1,0 +1,41 @@
+{
+  "name": "superphoto-pos",
+  "productName": "Super Photo Kassa",
+  "version": "1.0.0",
+  "description": "Kassaprogramma voor Super Photo Mahony en Indira",
+  "author": "Super Photo",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "release": "electron-builder --win --x64 --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "sr.superphoto.kassa",
+    "productName": "Super Photo Kassa",
+    "files": ["main.js", "preload.js", "src/**/*", "build/icon.png", "package.json"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "artifactName": "SuperPhotoKassa-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Super Photo Kassa"
+    },
+    "publish": [{ "provider": "github", "owner": "REPLACE_OWNER", "repo": "superphoto-pos", "releaseType": "release" }]
+  }
+}

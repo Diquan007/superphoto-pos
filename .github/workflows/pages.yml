@@ -1,0 +1,45 @@
+# Publiceert de webversie (voor telefoon/tablet) op GitHub Pages bij elke wijziging.
+# Eenmalig instellen: repository Settings > Pages > Source: "GitHub Actions".
+name: Webversie
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Webversie samenstellen
+        run: |
+          mkdir site
+          cp -r app/src/* site/
+          # Openbare databasegegevens (de publishable key is bedoeld om openbaar te zijn;
+          # zonder pincode kan er niets mee).
+          cat > site/config.js <<'EOF'
+          window.SP_CONFIG = {
+            url: 'https://cmwgbwvcgeupywjoockp.supabase.co',
+            key: 'sb_publishable_Blne1HEdj3mCH77VMGFwCA_grhPeJLS'
+          };
+          EOF
+          touch site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
