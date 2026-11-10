@@ -140,10 +140,14 @@ details.panel[open] > summary { margin-bottom: 8px; } details.panel[open] > summ
 /* ---------- tabellen ---------- */
 .table-wrap { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; }
 .tbl { width: 100%; border-collapse: collapse; background: #fff; }
-.tbl th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--line); z-index: 1; }
-.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--line); z-index: 1; white-space: nowrap; }
+.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: baseline; }
 .tbl.compact td, .tbl.compact th { padding: 5px 8px; }
 .tbl tr:last-child td { border-bottom: 0; }
+/* uitlijning: kop en waarden van een kolom altijd gelijk */
+.tbl th.r, .tbl td.r { text-align: right; }
+.tbl th.c, .tbl td.c { text-align: center; }
+.tbl td.r, .tbl td.c { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tbl td.sn, .sn { font: 600 .88rem Consolas, monospace; color: var(--ink-2); white-space: nowrap; }
 .tbl tr.low td { background: var(--red-soft); }
 .tbl tr.low .sn { color: var(--red); }
