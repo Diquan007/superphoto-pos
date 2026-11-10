@@ -75,6 +75,8 @@ function setupUpdates() {
     updater.on('update-available', i => send('update', { state: 'downloading', version: i.version }));
     updater.on('update-downloaded', i => send('update', { state: 'ready', version: i.version }));
     updater.on('error', err => send('update', { state: 'error', message: String(err && err.message || err) }));
+    updater.on('update-not-available', i => send('update', { state: 'none', version: i && i.version }));
+    updater.on('download-progress', p => send('update', { state: 'progress', percent: Math.round(p.percent || 0) }));
   } catch (e) { updater = null; /* updates zijn optioneel */ }
 }
 // De update-bron (GitHub 'eigenaar/repository') staat in de database en wordt na het starten doorgegeven.
@@ -90,6 +92,10 @@ ipcMain.handle('update:source', (_e, repo) => {
   return true;
 });
 function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch, data); }
+ipcMain.handle('update:check', async () => {
+  if (!updater || !feedSet) return { ok: false, reason: updater ? 'Geen update-bron ingesteld' : 'Updates werken alleen in het geïnstalleerde programma' };
+  try { await updater.checkForUpdates(); return { ok: true }; } catch (e) { return { ok: false, reason: String(e && e.message || e) }; }
+});
 ipcMain.handle('update:install', () => { if (updater) updater.quitAndInstall(false, true); });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), packaged: app.isPackaged, dataDir: dataDir() }));
 

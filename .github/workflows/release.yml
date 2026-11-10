@@ -30,14 +30,16 @@ jobs:
         shell: bash
         run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
       - run: npm ci
-      - name: Versielabel (tag) maken als het nog niet bestaat
+      - name: Bouwen
+        run: npx electron-builder --win --x64 --publish never
+      - name: Publiceren als één GitHub Release
         shell: bash
-        run: |
-          V="v$(node -p "require('./package.json').version")"
-          if ! git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then
-            git tag "$V" && git push origin "$V"
-          fi
-      - name: Bouwen en publiceren
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --x64 --publish always
+        run: |
+          V="v$(node -p "require('./package.json').version")"
+          if gh release view "$V" >/dev/null 2>&1; then
+            echo "Release $V bestaat al; verhoog de versie in app/package.json." && exit 1
+          fi
+          gh release create "$V" --title "Super Photo Kassa $V" --notes "Automatische update" --target "$GITHUB_SHA" \
+            dist/*.exe dist/*.exe.blockmap dist/latest.yml

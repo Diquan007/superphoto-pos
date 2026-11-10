@@ -14,7 +14,7 @@ export const local = window.pos ? window.pos : {
     return { ok: true };
   },
   appInfo: async () => ({ version: 'browser', packaged: false }),
-  installUpdate: async () => {}, setUpdateSource: async () => false, onUpdate: () => {}, onCloseRequest: () => {}, closeApp: async () => window.close()
+  installUpdate: async () => {}, setUpdateSource: async () => false, checkUpdate: async () => ({ ok: false, reason: 'Alleen in het Windows-programma' }), onUpdate: () => {}, onCloseRequest: () => {}, closeApp: async () => window.close()
 };
 
 // ---------- database (Supabase / PostgREST) ----------

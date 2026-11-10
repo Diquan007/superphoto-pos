@@ -435,7 +435,8 @@ export function create(root) {
         <div class="card"><h2>Automatische updates</h2>
           <label>GitHub-repository (eigenaar/naam)<input id="iRepo" placeholder="bijv. superphoto/superphoto-pos"></label>
           <p class="muted small">Alle kassa's halen nieuwe versies hier op en installeren ze bij het afsluiten.</p>
-          <button class="btn" id="iRepoSave">Opslaan</button></div>
+          <p class="small" id="iUpdState"></p>
+          <div class="btn-row"><button class="btn" id="iRepoSave">Opslaan</button><button class="btn ghost" id="iUpdCheck">Nu controleren</button></div></div>
         <div class="card"><h2>Back-up</h2>
           <p class="muted small">Download alle gegevens (verkopen, voorraad, artikelen, klanten) als één bestand en bewaar het op een USB-stick of in Google Drive. Doe dit minstens één keer per week.</p>
           <button class="btn primary" id="iBackup">Back-up downloaden</button></div>
@@ -455,6 +456,21 @@ export function create(root) {
       a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
       a.download = `superphoto-backup-${isoDay()}.json`; a.click();
       toast(`Back-up gemaakt: ${data.sales.length} transacties, ${data.products.length} artikelen.`, 'ok', 5000);
+    };
+    const updText = () => {
+      const u = S.update;
+      const t = !u ? 'Nog niet gecontroleerd sinds het opstarten.'
+        : u.state === 'none' ? `U heeft de nieuwste versie (${info.version}).`
+        : u.state === 'downloading' || u.state === 'progress' ? `Nieuwe versie wordt gedownload${u.percent != null ? ': ' + u.percent + '%' : '…'}`
+        : u.state === 'ready' ? `Versie ${u.version} staat klaar; wordt geïnstalleerd bij afsluiten.`
+        : u.state === 'error' ? 'Probleem bij controleren: ' + u.message : '';
+      const el = $('#iUpdState', main); if (el) el.textContent = t;
+    };
+    updText();
+    const updTimer = setInterval(() => { if (!document.body.contains($('#iUpdState', main) || document.createElement('i'))) clearInterval(updTimer); else updText(); }, 1500);
+    $('#iUpdCheck', main).onclick = async () => {
+      const r = await local.checkUpdate();
+      if (!r.ok) toast(r.reason, 'error', 6000); else { toast('Bezig met controleren…', 'info'); setTimeout(updText, 3000); }
     };
     $('#iRepoSave', main).onclick = async () => {
       try { await adminCall('pos_admin_set_update_repo', { p_repo: $('#iRepo', main).value.trim() }); toast('Opgeslagen. Kassa\'s gebruiken dit na de volgende start.', 'ok'); }

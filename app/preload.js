@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('pos', {
   printReceipt: (html, widthMm, printer) => ipcRenderer.invoke('print:receipt', { html, widthMm, printer }),
   appInfo: () => ipcRenderer.invoke('app:info'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
   setUpdateSource: repo => ipcRenderer.invoke('update:source', repo),
   onUpdate: cb => ipcRenderer.on('update', (_e, d) => cb(d)),
   onCloseRequest: cb => ipcRenderer.on('app:close-request', () => cb()),

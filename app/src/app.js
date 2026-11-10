@@ -352,8 +352,15 @@ async function showQueueDialog() {
 
 // ---------- updates & afsluiten ----------
 local.onUpdate(d => {
+  S.update = { ...d, at: new Date() };
   const bar = $('#updateBar'); if (!bar) return;
+  if (d.state === 'downloading' || d.state === 'progress') {
+    if (S.update.readyShown) return;
+    bar.hidden = false;
+    bar.innerHTML = html`<span class="muted">Nieuwe versie${d.version ? ' ' + d.version : ''} wordt op de achtergrond gedownload${d.percent != null ? '… ' + d.percent + '%' : '…'} U kunt gewoon doorwerken.</span>`;
+  }
   if (d.state === 'ready') {
+    S.update.readyShown = true;
     bar.hidden = false;
     bar.innerHTML = html`Nieuwe versie ${d.version} staat klaar. <button class="btn small primary" id="updNow">Nu bijwerken en herstarten</button>
       <span class="muted">(of automatisch bij afsluiten)</span>`;
