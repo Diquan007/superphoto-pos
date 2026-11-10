@@ -36,6 +36,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Super Photo Kassa"
     },
-    "publish": [{ "provider": "github", "owner": "REPLACE_OWNER", "repo": "superphoto-pos", "releaseType": "release" }]
+    "publish": [{ "provider": "github", "owner": "Diquan007", "repo": "superphoto-pos", "releaseType": "release" }]
   }
 }
