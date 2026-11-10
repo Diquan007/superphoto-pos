@@ -30,6 +30,13 @@ jobs:
         shell: bash
         run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
       - run: npm ci
+      - name: Versielabel (tag) maken als het nog niet bestaat
+        shell: bash
+        run: |
+          V="v$(node -p "require('./package.json').version")"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then
+            git tag "$V" && git push origin "$V"
+          fi
       - name: Bouwen en publiceren
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
