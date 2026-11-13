@@ -97,6 +97,7 @@ label.check input { width: auto; margin: 0; accent-color: var(--accent); }
 .view-head h1 { margin: 0; }
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .filters input:not([type=checkbox]), .filters select { width: auto; min-width: 180px; }
+.filters input[type=text], .filters input:not([type]) { min-width: 260px; }
 .filters label { margin: 0; display: flex; align-items: center; gap: 6px; }
 .filters.range input[type=date] { min-width: 0; }
 .narrow { max-width: 620px; margin: 0 auto; }

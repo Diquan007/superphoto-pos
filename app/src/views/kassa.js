@@ -21,7 +21,7 @@ export function create(root) {
   <div class="kassa">
     <div class="k-left">
       <div class="searchbar">
-        <input id="kSearch" class="big-input" placeholder="Stocknummer of naam typen of scannen  (F2)" autocomplete="off">
+        <input id="kSearch" class="big-input" placeholder="Stocknummer of naam typen  (F2)" autocomplete="off">
       </div>
       <div class="chips" id="kCats"></div>
       <div class="results" id="kResults"></div>
@@ -45,9 +45,9 @@ export function create(root) {
           <label>Tijd<select id="kPTime"><option value="">—</option>${raw(TIMES.map(t => `<option>${t}</option>`).join(''))}</select></label>
         </div>
         <div class="grid3 tight">
-          <label>Van<select id="kVan"></select></label>
-          <label>Door (maakt)<select id="kDoor"></select></label>
-          <label>Afhalen in<select id="kAfh"></select></label>
+          <label>Order van<select id="kVan"></select></label>
+          <label>Door<select id="kDoor"></select></label>
+          <label>Afhalen op<select id="kAfh"></select></label>
         </div>
         <label>Opmerking<input id="kComment" maxlength="500" placeholder="Bijv. formaat, afwerking, bijzonderheden"></label>
       </details>
@@ -201,8 +201,8 @@ export function create(root) {
     $('#kPartialBox', root).hidden = !partial;
     $$('#kMethods button', root).forEach(b => b.classList.toggle('active', b.dataset.m === method));
     const due = a.paid;
-    const quick = [due, ...[50, 100, 200, 500, 1000, 2000].filter(v => v > due)].slice(0, 5);
-    $('#kQuick', root).innerHTML = due > 0 ? quick.map((v, i) => `<button class="btn small" data-v="${v}">${i === 0 ? 'Gepast' : num(v)}</button>`).join('') : '';
+    const quick = [due, ...[400, 500, 1000, 1500].filter(v => v > due)];
+    $('#kQuick', root).innerHTML = due > 0 ? quick.map((v, i) => `<button class="btn small" data-v="${v}">${i === 0 ? 'Gepast' : v}</button>`).join('') : '';
     const isOrder = isOrderish();
     $('#kOrderBadge', root).hidden = !isOrder;
     $('#kCustHint', root).textContent = isOrder || partial ? '(verplicht)' : '(optioneel)';
