@@ -38,7 +38,7 @@ export function saleReceipt(store, sale, { provisional = null, copy = false } = 
   if (sale.voided) s += '<div class="c b">*** VERVALLEN ***</div>';
   if (sale.customer_name) s += row('Klant:', sale.customer_name + (sale.customer_phone ? ' ' + sale.customer_phone : ''));
   if (sale.pickup_at) s += row('Ophalen:', fmtDateTime(sale.pickup_at), 'b');
-  if (sale.route_afh && sale.route_afh !== sale.store_code) s += row('Afhalen in:', STORE_NAMES[sale.route_afh] || sale.route_afh, 'b');
+  if (sale.route_afh && sale.route_afh !== sale.store_code) s += row('Afhalen op:', STORE_NAMES[sale.route_afh] || sale.route_afh, 'b');
   if (sale.route_door && sale.route_door !== sale.store_code) s += row('Gemaakt door:', STORE_NAMES[sale.route_door] || sale.route_door);
   s += '<div class="hr"></div>';
   for (const l of sale.lines || []) {

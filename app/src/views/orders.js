@@ -15,7 +15,7 @@ export function create(root) {
         <input id="oSearch" placeholder="Zoek op transactienummer, naam of telefoon">
         <select id="oFilter">
           <option value="all">Alle open orders</option>
-          <option value="afh">Afhalen in ${STORE_NAMES[st]}</option>
+          <option value="afh">Afhalen op ${STORE_NAMES[st]}</option>
           <option value="door">Maken door ${STORE_NAMES[st]}</option>
           <option value="open">Met openstaand bedrag</option>
           <option value="today">Ophalen vandaag of eerder</option>

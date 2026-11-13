@@ -12,7 +12,7 @@ Dubbelklik op **Super Photo Kassa**. Kies je winkel (Mahony of Indira) en voer d
 
 ## Ophaalorders en aanbetalingen
 - Klant betaalt nu een deel? Vink **Aanbetaling** aan en vul in hoeveel er nu betaald wordt. Naam van de klant is dan verplicht.
-- Open **Ophalen, route en opmerking** voor de ophaaldatum en -tijd, welke winkel het maakt (**Door**) en waar de klant het ophaalt (**Afhalen in**).
+- Open **Ophalen, route en opmerking** voor de ophaaldatum en -tijd, welke winkel de order heeft aangenomen (**Order van**), welke winkel het maakt (**Door**) en waar de klant het ophaalt (**Afhalen op**).
 - Korting geven mag (in % of SRD). Een order met korting blijft bij **Ophaalorders** staan tot de beheerder de korting heeft goedgekeurd.
 
 ## Tabblad Ophaalorders (F3)
