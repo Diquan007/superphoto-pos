@@ -155,7 +155,7 @@ export function create(root) {
         <td class="c"><div class="qty"><button data-a="-" data-i="${i}">−</button><input data-q="${i}" value="${c.qty}" inputmode="numeric"><button data-a="+" data-i="${i}">+</button></div></td>
         <td class="r b">${num(c.price * c.qty)}</td>
         <td><button class="icon-btn" data-a="x" data-i="${i}" title="Verwijderen">✕</button></td></tr>`;
-    }).join('') : '<tr><td colspan="6" class="empty muted">Nog geen artikelen. Zoek hierboven of scan een barcode.</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty muted">Nog geen artikelen. Zoek hierboven.</td></tr>';
     S.dirty = cart.length > 0;
     renderResults();
     recalc();
