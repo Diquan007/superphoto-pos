@@ -1,6 +1,7 @@
 // Super Photo Kassa - opstarten, inloggen, tabbladen en offline wachtrij
 import { local, rpc, setConnection, hasConnection, isNet, isSession, ApiError, NetError,
          html, raw, esc, $, $$, toast, modal, askPin, alertBox, confirmBox, uuid, fmtDateTime, STORE_NAMES } from './lib.js';
+import { openMyLeave } from './verlof.js';
 
 // ---------- gedeelde toestand ----------
 export const S = {
@@ -65,6 +66,7 @@ export function adminLogout() {
   if (S.admin) rpc('pos_logout', { p_token: S.admin.token }).catch(() => {});
   S.admin = null; renderTopbar();
   if (S.views.beheer) S.views.beheer.locked();
+  if (current === 'bezetting') S.views.bezetting?.show();
 }
 
 async function sessionExpired() {
@@ -80,7 +82,7 @@ export function setOnline(v) {
   if (onlineState === v) return;
   onlineState = v; S.online = v;
   renderStatus();
-  if (v) syncQueue();
+  if (v) { syncQueue(); S.views.bezetting?.sync(); }
 }
 
 // ---------- offline wachtrij ----------
@@ -213,8 +215,10 @@ async function showLogin() {
     <p class="muted">Kies de winkel en voer de pincode van die kassa in.</p>
     <div class="store-choice">${raw(stores.map(s => html`
       <button class="store-btn ${s.code}" data-code="${s.code}"><span>${STORE_NAMES[s.code]}</span><small>${s.address || ''}</small></button>`).join(''))}</div>
-    ${raw(S.queue.length ? html`<p class="warn-text">Er staan ${S.queue.length} offline transactie(s) klaar om te versturen.</p>` : '')}`);
+    ${raw(S.queue.length ? html`<p class="warn-text">Er staan ${S.queue.length} offline transactie(s) klaar om te versturen.</p>` : '')}
+    <div class="mine-link"><span class="muted">Personeel:</span> <button class="btn" id="myLeave">Mijn verlof bekijken</button></div>`);
   $$('.store-btn').forEach(b => b.onclick = () => loginStore(b.dataset.code));
+  $('#myLeave').onclick = () => openMyLeave();
   if (S.settings.store) $(`.store-btn[data-code="${S.settings.store}"]`)?.classList.add('last');
 }
 
@@ -249,6 +253,7 @@ const TABS = [
   { id: 'kassa',    label: 'Kassa',          key: 'F1' },
   { id: 'orders',   label: 'Ophaalorders',   key: 'F3' },
   { id: 'kasuit',   label: 'Kas uit',        key: 'F4' },
+  { id: 'bezetting',label: 'Bezetting',      key: 'F5' },
   { id: 'afsluiten',label: 'Dagafsluiting',  key: 'F6' },
   { id: 'voorraad', label: 'Voorraad',       key: 'F7' },
   { id: 'beheer',   label: 'Beheer',         key: 'F8' }
@@ -283,7 +288,7 @@ async function buildShell() {
 
   const mods = {
     kassa: await import('./views/kassa.js'), orders: await import('./views/orders.js'),
-    kasuit: await import('./views/kasuit.js'), afsluiten: await import('./views/afsluiten.js'),
+    kasuit: await import('./views/kasuit.js'), bezetting: await import('./views/bezetting.js'), afsluiten: await import('./views/afsluiten.js'),
     voorraad: await import('./views/voorraad.js'), beheer: await import('./views/beheer.js')
   };
   for (const t of TABS) S.views[t.id] = mods[t.id].create($('#view-' + t.id));
@@ -296,6 +301,7 @@ async function buildShell() {
   showTab('kassa');
   refreshCatalog();
   syncQueue();
+  S.views.bezetting?.sync();
 }
 
 export function staff() { return $('#staffSel')?.value || ''; }
@@ -383,8 +389,8 @@ document.addEventListener('keydown', e => {
   const t = TABS.find(t => t.key === e.key);
   if (t) { e.preventDefault(); showTab(t.id); }
 });
-window.addEventListener('online', () => syncQueue());
-setInterval(() => { if (S.token) { if (S.queue.length) syncQueue(); } }, 20000);
+window.addEventListener('online', () => { syncQueue(); S.views.bezetting?.sync(); });
+setInterval(() => { if (S.token) { if (S.queue.length) syncQueue(); if (S.rosterPending) S.views.bezetting?.sync(); } }, 20000);
 setInterval(() => { if (S.token && !S.dirty) refreshCatalog(); }, 5 * 60 * 1000);
 
 // ---------- opstarten ----------

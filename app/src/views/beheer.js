@@ -3,10 +3,11 @@ import { S, adminCall, adminLogin, refreshCatalog, saveSettings, printHtml, rend
 import { local, rpc, html, raw, esc, $, $$, srd, num, round2, parseAmount, toast, modal, alertBox, confirmBox, askPin,
          attachSuggest, searchProducts, isNet, fmtDate, fmtDateTime, isoDay, STORE_NAMES, LOCATION_NAMES, METHOD_NAMES } from '../lib.js';
 import { saleReceipt, testReceipt } from '../receipt.js';
+import { verlofSection } from './beheer-verlof.js';
 
 const SECTIONS = [
   ['overzicht', 'Overzicht'], ['dashboard', 'Dashboard'], ['transacties', 'Transacties'], ['artikelen', 'Artikelen'],
-  ['voorraad', 'Voorraad'], ['meldingen', 'Meldingen'], ['afsluitingen', 'Dagafsluitingen'], ['instellingen', 'Instellingen']
+  ['voorraad', 'Voorraad'], ['meldingen', 'Meldingen'], ['afsluitingen', 'Dagafsluitingen'], ['verlof', 'Personeel & verlof'], ['instellingen', 'Instellingen']
 ];
 const KIND_NL = { sale: 'Verkoop', balance: 'Restbetaling', cash_out: 'Kas uit' };
 const PKIND = { receive: 'Ontvangen', transfer: 'Uit magazijn', new_item: 'Nieuw artikel' };
@@ -446,6 +447,7 @@ export function create(root) {
           <button class="btn" id="iPin">Nieuwe pincode instellen</button></div>
         ${raw(stores.map(s => html`<div class="card"><h2>Medewerkers ${STORE_NAMES[s.code]}</h2>
           <textarea data-staff="${s.code}" rows="5" placeholder="Eén naam per regel">${s.staff.join('\n')}</textarea>
+          <p class="muted small">Wie u hier toevoegt of weghaalt, verschijnt of verdwijnt ook bij Bezetting en Personeel &amp; verlof. Het verlof van wie weg is, blijft bewaard.</p>
           <button class="btn" data-savestaff="${s.code}">Opslaan</button></div>`).join(''))}
       </div>`;
     $('#iPrinter', main).value = S.settings.printer || '';
@@ -499,7 +501,7 @@ export function create(root) {
     });
   }
 
-  const RENDER = { overzicht, dashboard, transacties, artikelen, voorraad, meldingen, afsluitingen, instellingen };
+  const RENDER = { overzicht, dashboard, transacties, artikelen, voorraad, meldingen, afsluitingen, verlof: () => verlofSection(main), instellingen };
   locked();
   return { show() { go(section); }, locked };
 }

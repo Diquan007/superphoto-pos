@@ -10,6 +10,9 @@ This guide takes you from nothing to two working registers. Plan about an hour, 
 | `01_schema.sql` | Database step 1: the tables |
 | `02_functions.sql` | Database step 2: the rules (logins, sales, stock, end of day) |
 | `03_products.sql` | Database step 3: your 319 products and prices from the stock list |
+| `04_verlof.sql` | Database step 4: staffing (bezetting) and leave (verlof) |
+| `05_verlof_testdata.sql` | Optional: test data for leave, only for trying it out |
+| `06_verlof_testdata_wissen.sql` | Removes all leave and staffing data again (run before going live) |
 | `superphoto-pos-source.zip` | The program's source code, for GitHub (automatic updates) |
 | `HANDLEIDING-KASSA.md` | Short guide for staff, in Dutch |
 
@@ -26,7 +29,7 @@ This guide takes you from nothing to two working registers. Plan about an hour, 
 3. Wait until the project is ready (1–2 minutes).
 4. In the left menu, open **SQL Editor**, then **New query**.
 5. Open `01_schema.sql` in Notepad, select all (Ctrl+A), copy, paste it into the SQL Editor and click **Run**. You should see "Success. No rows returned".
-6. Do the same with `02_functions.sql`, then with `03_products.sql`. Always in this order.
+6. Do the same with `02_functions.sql`, then with `03_products.sql`, then with `04_verlof.sql`. Always in this order.
 7. Go to **Project Settings** (gear icon), then **API Keys**. Write down:
    - the **Project URL** (looks like `https://abcdefgh.supabase.co`). It's on the **Data API** page or the project's home page.
    - the **Publishable key** (starts with `sb_publishable_`). If you only see "anon public", that one works too.
@@ -79,6 +82,8 @@ Updates go through GitHub. When there's a new version, each register downloads i
 - **Dashboard:** revenue per shop, cash and PIN received, passport photos, and items sold per stock number, for any period. It can be exported to Excel (CSV).
 - **Transacties:** find a sale and mark it **Vervallen** (void). Stock items go back into stock, and any balance payments on that order are voided too.
 - **Meldingen:** staff report goods received, items moved from the storeroom, or new items without a stock number. Nothing changes until you approve. For a new item, you give it a stock number when approving.
+- **Personeel & verlof:** each person's vacation days per year, leave taken and planned, sick days, special leave, what's left, and what carries over or gets paid out at year end. Enter leave with **+ Verlof invoeren**, and set days and the personal PIN with **Instellen**. **Maandoverzicht** shows who worked where and who was on leave, day by day. Rules: vacation counts against the days; the first 5 sick days per year are paid, after that they count against vacation; special leave is recorded only; at most 3 days carry over to the next year, the rest is paid out. Days are counted Monday to Saturday by default, and you can change the number for a half day or a public holiday.
+- **Bezetting (F5):** the person on the register fills in who works today. Past days are locked for staff; logged in as admin, you can change any day.
 
 ## Backups
 

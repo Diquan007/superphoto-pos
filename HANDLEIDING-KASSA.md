@@ -33,6 +33,19 @@ Aan het eind van de dag (code 2000):
 - Zie hoeveel er van een artikel in de winkel en in het magazijn is.
 - **Melding aan beheerder**: goederen ontvangen, iets uit het magazijn gehaald, of een nieuw artikel zonder stocknummer (naam, prijs, aantal, leverancier). De voorraad verandert pas als de beheerder het goedkeurt. Onderaan zie je of je melding is goedgekeurd.
 
+## Bezetting (F5)
+Elke dag vult de medewerker die op de kassa werkt in wie er vandaag werkt.
+1. Open **Bezetting** en klik bij uw eigen winkel op **Invullen wie er werkt**.
+2. Vink iedereen aan die vandaag werkt. Werkt iemand van de andere winkel vandaag bij u, vink die dan aan onder **Vandaag hier uit de andere winkel**.
+3. Klik **Opslaan**.
+
+U ziet op dezelfde pagina ook de andere winkel en wie er verlof heeft. Met **‹ Vorige dag** kijkt u terug. Gisteren en eerder kunt u niet meer wijzigen. Klopt er iets niet, geef het dan door aan de beheerder.
+
+## Mijn verlof bekijken
+Op het startscherm en in het tabblad Bezetting staat de knop **Mijn verlof bekijken**. Kies uw naam en voer uw **eigen pincode** in (die krijgt u van de beheerder). U ziet hoeveel vakantiedagen u nog heeft, wat u heeft opgenomen en wat er gepland staat. U kunt niets wijzigen. Het venster sluit vanzelf na 2 minuten.
+
+Op uw telefoon werkt het ook: open de webversie van de kassa en tik op **Mijn verlof bekijken**. Hiervoor is internet nodig.
+
 ## Geen internet?
 Bovenaan staat dan **Offline**. Verkopen en Kas uit werken gewoon; de bon krijgt een **voorlopig nummer** (bijv. V0911-143005). Zodra er weer internet is, worden ze automatisch verstuurd en krijgen ze een echt transactienummer. Ophaalorders, restbetalingen en dagafsluiting werken alleen online.
 
@@ -46,6 +59,7 @@ Alleen de beheerder kan een transactie vervallen verklaren. Noteer het transacti
 | F2 | Naar zoekveld |
 | F3 | Ophaalorders |
 | F4 | Kas uit |
+| F5 | Bezetting |
 | F6 | Dagafsluiting |
 | F7 | Voorraad |
 | F8 | Beheer |

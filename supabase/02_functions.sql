@@ -815,10 +815,16 @@ end $$;
 
 create or replace function public.pos_admin_set_staff(p_token uuid, p_store text, p_staff text[]) returns void
 language plpgsql security definer set search_path = app, public, extensions as $$
+declare v_names text[];
 begin
   perform app.check_session(p_token, 'admin');
-  update app.stores set staff = (select coalesce(array_agg(distinct left(trim(n), 50)), '{}') from unnest(p_staff) n where trim(n) <> '')
-  where code = p_store;
+  select coalesce(array_agg(distinct left(trim(n), 50)), '{}') into v_names from unnest(p_staff) n where trim(n) <> '';
+  update app.stores set staff = v_names where code = p_store;
+  if to_regclass('app.employees') is not null then
+    insert into app.employees(name, store_code) select n, p_store from unnest(v_names) n
+    on conflict (name) do update set store_code = excluded.store_code, active = true;
+    update app.employees set active = false where store_code = p_store and not (name = any(v_names));
+  end if;
 end $$;
 
 create or replace function public.pos_admin_change_pin(p_token uuid, p_target text, p_new_pin text) returns void
@@ -856,9 +862,10 @@ end $$;
 -- Volledige back-up (zonder pincodes en sessies) als één JSON-bestand
 create or replace function public.pos_admin_export(p_token uuid) returns jsonb
 language plpgsql stable security definer set search_path = app, public, extensions as $$
+declare v jsonb;
 begin
   perform app.check_session(p_token, 'admin');
-  return jsonb_build_object(
+  v := jsonb_build_object(
     'exported_at', now(), 'format', 'superphoto-pos-backup-1',
     'stores', (select jsonb_agg(to_jsonb(s) - 'pin_hash') from app.stores s),
     'settings', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.settings x where key <> 'admin_pin_hash'),
@@ -872,6 +879,14 @@ begin
     'sale_lines', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.sale_lines x),
     'day_closes', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.day_closes x),
     'proposals', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.proposals x));
+  if to_regclass('app.employees') is not null then
+    v := v || jsonb_build_object(
+      'employees', (select coalesce(jsonb_agg(to_jsonb(x) - 'pin_hash'), '[]') from app.employees x),
+      'leave_years', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave_years x),
+      'leave', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave x),
+      'attendance', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.attendance x));
+  end if;
+  return v;
 end $$;
 
 -- ===================== rechten =====================
