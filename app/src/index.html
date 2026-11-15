@@ -6,6 +6,11 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https: http://localhost:* http://127.0.0.1:*">
   <title>Super Photo Kassa</title>
+  <meta name="theme-color" content="#ffffff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,5 +18,6 @@
   <div id="toasts"></div>
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>
