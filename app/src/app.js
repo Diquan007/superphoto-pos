@@ -1,5 +1,5 @@
 // Super Photo Kassa - opstarten, inloggen, tabbladen en offline wachtrij
-import { local, rpc, setConnection, hasConnection, isNet, isSession, ApiError, NetError,
+import { autoDates, local, rpc, setConnection, hasConnection, isNet, isSession, ApiError, NetError,
          html, raw, esc, $, $$, toast, modal, askPin, alertBox, confirmBox, uuid, fmtDateTime, STORE_NAMES } from './lib.js';
 import { openMyLeave } from './verlof.js';
 
@@ -138,6 +138,7 @@ export async function refreshCatalog() {
     const c = await call('pos_catalog');
     S.catalog = c.products;
     S.store = { ...S.store, ...c.store };
+    renderStaff();
     await local.store.set('catalog_' + S.store.code, { products: c.products, store: c.store, at: c.generated_at });
     const cust = await call('pos_customers');
     S.customers = cust;
@@ -395,6 +396,7 @@ setInterval(() => { if (S.token && !S.dirty) refreshCatalog(); }, 5 * 60 * 1000)
 
 // ---------- opstarten ----------
 async function start() {
+  autoDates();
   S.settings = await local.store.get('settings', {});
   // webversie: databasegegevens staan al in config.js
   if (!S.settings.supabaseUrl && window.SP_CONFIG && window.SP_CONFIG.url) {

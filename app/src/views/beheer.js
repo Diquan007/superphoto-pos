@@ -445,10 +445,10 @@ export function create(root) {
           <label>Welke<select id="iPinT"><option value="MAH">Kassa Mahony</option><option value="IND">Kassa Indira</option><option value="ADMIN">Beheerder (uzelf)</option></select></label>
           <p class="muted small">Na het wijzigen van een kassapincode moet die kassa opnieuw inloggen.</p>
           <button class="btn" id="iPin">Nieuwe pincode instellen</button></div>
-        ${raw(stores.map(s => html`<div class="card"><h2>Medewerkers ${STORE_NAMES[s.code]}</h2>
-          <textarea data-staff="${s.code}" rows="5" placeholder="Eén naam per regel">${s.staff.join('\n')}</textarea>
-          <p class="muted small">Wie u hier toevoegt of weghaalt, verschijnt of verdwijnt ook bij Bezetting en Personeel &amp; verlof. Het verlof van wie weg is, blijft bewaard.</p>
-          <button class="btn" data-savestaff="${s.code}">Opslaan</button></div>`).join(''))}
+        <div class="card"><h2>Medewerkers</h2>
+          <p class="muted small">Medewerkers toevoegen, wijzigen, onzichtbaar maken of verwijderen doet u bij Personeel &amp; verlof. De lijsten van beide kassa's worden dan vanzelf bijgewerkt.</p>
+          <p class="small">${stores.map(s => STORE_NAMES[s.code] + ': ' + (s.staff.join(', ') || '—')).join(' · ')}</p>
+          <button class="btn" id="iStaff">Naar Personeel &amp; verlof</button></div>
       </div>`;
     $('#iPrinter', main).value = S.settings.printer || '';
     try { const st = await rpc('pos_status'); $('#iRepo', main).value = st.update_repo || ''; } catch {}
@@ -492,13 +492,7 @@ export function create(root) {
       try { await adminCall('pos_admin_change_pin', { p_target: t, p_new_pin: a }); toast('Pincode gewijzigd.', 'ok'); }
       catch (e) { alertBox('Niet gelukt', e.message); }
     };
-    $$('[data-savestaff]', main).forEach(b => b.onclick = async () => {
-      const code = b.dataset.savestaff;
-      const names = $(`[data-staff="${code}"]`, main).value.split('\n').map(s => s.trim()).filter(Boolean);
-      await adminCall('pos_admin_set_staff', { p_store: code, p_staff: names });
-      if (code === S.store.code) { S.store.staff = [...new Set(names)].sort(); renderStaff(); }
-      toast('Medewerkers opgeslagen.', 'ok');
-    });
+    $('#iStaff', main).onclick = () => go('verlof');
   }
 
   const RENDER = { overzicht, dashboard, transacties, artikelen, voorraad, meldingen, afsluitingen, verlof: () => verlofSection(main), instellingen };

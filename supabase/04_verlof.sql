@@ -29,6 +29,9 @@ create table if not exists app.employees (
   created_at timestamptz not null default now()
 );
 
+-- vaste werkdagen (1 = maandag ... 7 = zondag); parttimers werken minder dagen
+alter table app.employees add column if not exists workdays int[] not null default '{1,2,3,4,5,6}';
+
 -- vakantiedagen per jaar; een jaar zonder regel neemt het aantal van het vorige jaar over
 create table if not exists app.leave_years (
   employee_id bigint not null references app.employees(id) on delete cascade,
@@ -90,6 +93,13 @@ begin
   if v_id is null then perform app.err('SESSIE_VERLOPEN'); end if;
   return v_id;
 end $$;
+
+-- Houdt de medewerkerslijst van de kassa's gelijk aan de zichtbare medewerkers
+create or replace function app.sync_store_staff() returns void
+language sql security definer set search_path = app, public, extensions as $$
+  update app.stores s set staff = coalesce((select array_agg(e.name order by e.name) from app.employees e
+                                            where e.store_code = s.code and e.active), '{}')
+$$;
 
 -- Saldo van één medewerker voor één jaar (berekent het meegenomen saldo uit het vorige jaar)
 create or replace function app.leave_balance(p_emp bigint, p_year int) returns jsonb
@@ -269,11 +279,10 @@ begin
     'year', p_year, 'today', app.today(),
     'employees', coalesce((select jsonb_agg(jsonb_build_object(
         'id', e.id, 'name', e.name, 'store_code', e.store_code, 'active', e.active, 'has_pin', e.pin_hash is not null,
-        'balance', app.leave_balance(e.id, p_year),
+        'workdays', e.workdays, 'balance', app.leave_balance(e.id, p_year),
         'worked', (select count(*) from app.attendance a where a.employee_id = e.id and extract(year from a.day) = p_year))
         order by e.store_code desc, e.name)
-      from app.employees e
-      where e.active or exists (select 1 from app.leave l where l.employee_id = e.id and extract(year from l.date_from) = p_year)), '[]'::jsonb),
+      from app.employees e), '[]'::jsonb),
     'leave', app.leave_rows(null, p_year));
 end $$;
 
@@ -285,7 +294,7 @@ begin
   perform app.check_session(p_token, 'admin');
   return jsonb_build_object(
     'from', v_from, 'to', v_to, 'today', app.today(),
-    'employees', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'store_code', store_code) order by store_code desc, name)
+    'employees', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'store_code', store_code, 'workdays', workdays) order by store_code desc, name)
                    from app.employees where active), '[]'::jsonb),
     'leave', coalesce((select jsonb_agg(jsonb_build_object('employee_id', employee_id, 'kind', kind, 'date_from', date_from, 'date_to', date_to))
                from app.leave where date_to >= v_from and date_from <= v_to), '[]'::jsonb),
@@ -350,6 +359,48 @@ begin
     delete from app.sessions where role = 'employee' and employee_id = v_emp;
   end if;
   return app.leave_balance(v_emp, v_year);
+end $$;
+
+-- Medewerker toevoegen of wijzigen (naam, winkel, vaste werkdagen, zichtbaar)
+create or replace function public.pos_admin_employee_upsert(p_token uuid, p jsonb) returns jsonb
+language plpgsql security definer set search_path = app, public, extensions as $$
+declare v_id bigint := nullif(p->>'id', '')::bigint; v_name text := left(trim(coalesce(p->>'name', '')), 50);
+        v_store text := p->>'store_code'; v_active boolean := coalesce((p->>'active')::boolean, true);
+        v_days int[]; v_year int := (p->>'year')::int; v_ent numeric := nullif(p->>'days', '')::numeric;
+begin
+  perform app.check_session(p_token, 'admin');
+  if v_name = '' then perform app.err('Vul een naam in.'); end if;
+  if v_store not in ('MAH','IND') then perform app.err('Kies de winkel.'); end if;
+  select coalesce(array_agg(distinct d order by d), '{}') into v_days
+    from jsonb_array_elements_text(coalesce(p->'workdays', '[1,2,3,4,5,6]'::jsonb)) x(d0), lateral (select d0::int as d) y
+    where d between 1 and 7;
+  if cardinality(v_days) = 0 then perform app.err('Kies minstens één werkdag.'); end if;
+  if exists (select 1 from app.employees where lower(name) = lower(v_name) and id is distinct from v_id) then
+    perform app.err('Er is al een medewerker met de naam ' || v_name || '. Gebruik bijvoorbeeld ook een achternaam of letter.');
+  end if;
+  if v_id is null then
+    insert into app.employees(name, store_code, workdays, active) values (v_name, v_store, v_days, v_active) returning id into v_id;
+    if v_year is not null and v_ent is not null then
+      if v_ent < 0 or v_ent > 100 or v_ent * 2 <> round(v_ent * 2) then perform app.err('Vul het aantal vakantiedagen in (0 tot 100, halve dagen mag).'); end if;
+      insert into app.leave_years(employee_id, year, days, carry_in) values (v_id, v_year, v_ent, 0);
+    end if;
+  else
+    update app.employees set name = v_name, store_code = v_store, workdays = v_days, active = v_active where id = v_id;
+    if not found then perform app.err('Deze medewerker bestaat niet meer.'); end if;
+    if not v_active then delete from app.sessions where role = 'employee' and employee_id = v_id; end if;
+  end if;
+  perform app.sync_store_staff();
+  return jsonb_build_object('id', v_id);
+end $$;
+
+-- Medewerker definitief verwijderen, met al het verlof en de bezetting
+create or replace function public.pos_admin_employee_delete(p_token uuid, p_id bigint) returns void
+language plpgsql security definer set search_path = app, public, extensions as $$
+begin
+  perform app.check_session(p_token, 'admin');
+  delete from app.sessions where role = 'employee' and employee_id = p_id;
+  delete from app.employees where id = p_id;
+  perform app.sync_store_staff();
 end $$;
 
 -- Medewerkerslijsten van de kassa: houdt ook de verlofadministratie bij

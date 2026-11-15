@@ -247,3 +247,51 @@ export function searchProducts(products, q) {
     words.every(w => p.name.toLowerCase().includes(w) || (p.category || '').toLowerCase().includes(w)));
   return [...exact, ...starts, ...named];
 }
+
+// ---------- datumvelden altijd als dd-mm-jjjj ----------
+// Het standaard datumveld van de browser volgt de taal van Windows/de browser (soms mm/dd/jjjj).
+// Elk <input type="date"> krijgt daarom een tekstveld dd-mm-jjjj ervoor en een kalenderknop.
+// De code blijft het oorspronkelijke veld gebruiken (waarde jjjj-mm-dd), dus er verandert verder niets.
+const valueProp = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+function enhanceDate(nat) {
+  if (nat.dataset.enh) return;
+  nat.dataset.enh = '1';
+  const wrap = document.createElement('span'); wrap.className = 'datef';
+  const txt = document.createElement('input');
+  txt.type = 'text'; txt.className = 'datef-text'; txt.placeholder = 'dd-mm-jjjj'; txt.inputMode = 'numeric'; txt.maxLength = 10; txt.autocomplete = 'off';
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'datef-btn'; btn.tabIndex = -1; btn.title = 'Kalender'; btn.textContent = '📅';
+  nat.parentNode.insertBefore(wrap, nat);
+  wrap.append(txt, btn, nat);
+  nat.classList.add('datef-native'); nat.tabIndex = -1;
+  const show = () => { const v = valueProp.get.call(nat); txt.value = v ? `${v.slice(8, 10)}-${v.slice(5, 7)}-${v.slice(0, 4)}` : ''; txt.classList.remove('bad'); };
+  Object.defineProperty(nat, 'value', { configurable: true, get() { return valueProp.get.call(nat); }, set(v) { valueProp.set.call(nat, v); show(); } });
+  nat.addEventListener('change', show);
+  const commit = iso => { if (valueProp.get.call(nat) !== iso) { valueProp.set.call(nat, iso); nat.dispatchEvent(new Event('change', { bubbles: true })); } };
+  const parse = s => {
+    const m = s.trim().match(/^(\d{1,2})[-/. ](\d{1,2})[-/. ](\d{4})$/); if (!m) return null;
+    const d = +m[1], mo = +m[2], y = +m[3], dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+  txt.addEventListener('input', e => {
+    let v = txt.value;
+    if (e.inputType && e.inputType.startsWith('insert') && /^\d+$/.test(v.replace(/-/g, ''))) {   // streepjes vanzelf
+      const dg = v.replace(/\D/g, '').slice(0, 8);
+      v = dg.length > 4 ? `${dg.slice(0, 2)}-${dg.slice(2, 4)}-${dg.slice(4)}` : dg.length > 2 ? `${dg.slice(0, 2)}-${dg.slice(2)}` : dg;
+      txt.value = v;
+    }
+    if (!v.trim()) return commit('');
+    const iso = parse(v); txt.classList.toggle('bad', !iso && v.length >= 10);
+    if (iso) commit(iso);
+  });
+  txt.addEventListener('blur', () => { if (txt.value.trim() && !parse(txt.value)) show(); });
+  btn.onclick = () => { try { nat.showPicker(); } catch { nat.focus(); } };
+  show();
+}
+export function autoDates() {
+  const scan = root => root.querySelectorAll && root.querySelectorAll('input[type=date]:not([data-enh])').forEach(enhanceDate);
+  scan(document);
+  new MutationObserver(list => { for (const m of list) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.matches('input[type=date]')) enhanceDate(n); else scan(n); } })
+    .observe(document.body, { childList: true, subtree: true });
+}

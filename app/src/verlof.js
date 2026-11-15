@@ -18,12 +18,31 @@ const WEEKDAYS = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrij
 export const weekday = s => WEEKDAYS[dayDate(s).getDay()];
 export const period = (f, t) => f === t ? fmtDate(f) : `${fmtDate(f)} t/m ${fmtDate(t)}`;
 
-// werkdagen tussen twee data: maandag t/m zaterdag (zondag telt niet mee)
-export function workdays(from, to) {
+// werkdagen tussen twee data volgens de vaste werkdagen van de medewerker (1 = ma ... 7 = zo; standaard ma t/m za)
+export const FULL_WEEK = [1, 2, 3, 4, 5, 6];
+export function workdays(from, to, wd = FULL_WEEK) {
   if (!from || !to || to < from) return 0;
   let n = 0;
-  for (let d = dayDate(from), end = dayDate(to); d <= end; d.setDate(d.getDate() + 1)) if (d.getDay() !== 0) n++;
+  for (let d = dayDate(from), end = dayDate(to); d <= end; d.setDate(d.getDate() + 1)) if (wd.includes(d.getDay() || 7)) n++;
   return n;
+}
+export const WD_SHORT = ['', 'ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+export const isPartTime = wd => !!wd && !FULL_WEEK.every(d => wd.includes(d));
+export const wdText = wd => (wd || FULL_WEEK).map(d => WD_SHORT[d]).join(', ');
+const MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+// alle gewerkte dagen onder elkaar, per maand
+export function workedList(worked) {
+  if (!worked.length) return '<p class="muted">Nog geen dagen.</p>';
+  const byMonth = [];
+  for (const w of worked) {
+    const key = w.day.slice(0, 7);
+    if (!byMonth.length || byMonth[byMonth.length - 1].key !== key) byMonth.push({ key, days: [] });
+    byMonth[byMonth.length - 1].days.push(w);
+  }
+  return html`<div class="worked-box">${raw(byMonth.map(m => html`<div class="worked-month">
+      <h4><span class="mn">${MONTHS[+m.key.slice(5, 7) - 1]}</span> ${m.key.slice(0, 4)} <span class="muted">· ${m.days.length} ${m.days.length === 1 ? 'dag' : 'dagen'}</span></h4>
+      <ul class="worked-ul">${raw(m.days.map(w => html`<li><span class="wd">${WD_SHORT[dayDate(w.day).getDay() || 7]}</span> ${fmtDate(w.day)} <span class="muted">${STORE_NAMES[w.store_code]}</span></li>`).join(''))}</ul></div>`).join(''))}</div>`;
 }
 
 // Saldo-kaartjes (zelfde opbouw voor medewerker en beheerder)
@@ -97,7 +116,7 @@ export async function openMyLeave() {
       ${raw(coming.length ? html`<h3>Gepland</h3>${raw(leaveTable(coming))}` : '')}
       <h3>Opgenomen</h3>${raw(leaveTable(past))}
       <h3>Gewerkt in ${year}: ${data.worked.length} ${data.worked.length === 1 ? 'dag' : 'dagen'}</h3>
-      ${raw(data.worked.length ? html`<p class="small muted worked-list">${data.worked.slice(0, 14).map(w => fmtDate(w.day) + ' ' + STORE_NAMES[w.store_code]).join(' · ')}${data.worked.length > 14 ? ' …' : ''}</p>` : '')}
+      ${raw(workedList(data.worked))}
       <p class="small muted">Klopt er iets niet? Bespreek het met de beheerder. U kunt hier zelf niets wijzigen.</p>`;
   };
   await modal({ title: 'Verlof van ' + data.name, wide: true, body: body(),

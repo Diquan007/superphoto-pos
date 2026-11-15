@@ -326,3 +326,31 @@ textarea { resize: vertical; margin-bottom: 8px; }
   .worker-checks { grid-template-columns: 1fr; }
   .roster .view-head .filters .btn[data-nav] { flex: 1; }
 }
+
+/* ---------- datumveld dd-mm-jjjj ---------- */
+.datef { position: relative; display: inline-flex; align-items: stretch; width: 100%; }
+label > .datef { margin-top: 4px; }
+.filters .datef { width: auto; }
+.datef .datef-text { width: 100%; padding-right: 40px; font-variant-numeric: tabular-nums; }
+.filters .datef .datef-text { min-width: 0; width: 150px; }
+.datef .datef-text.bad { border-color: var(--red); }
+.datef-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; cursor: pointer; font-size: 1rem; padding: 4px 6px; border-radius: 6px; }
+.datef-btn:hover { background: var(--surface-2); }
+.datef input.datef-native { min-width: 0; position: absolute; left: 0; bottom: 0; width: 100%; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; margin: 0; }
+.worked-box { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 10px; background: var(--surface-2); margin-bottom: 10px; }
+.worked-month h4 { margin: 10px 0 4px; font-size: .9rem; }
+.worked-month h4 .mn { text-transform: capitalize; }
+.worked-ul { list-style: none; margin: 0; padding: 0; font-variant-numeric: tabular-nums; }
+.worked-ul li { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.worked-ul li:last-child { border-bottom: 0; }
+.worked-ul .wd { display: inline-block; width: 26px; color: var(--ink-3); }
+.month-grid td.off { background: repeating-linear-gradient(135deg, #f4f1ec 0 4px, #ebe6de 4px 8px); }
+.wd-pick { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.wd-pick label { margin: 0; border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.wd-pick label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.wd-pick input { width: auto; margin: 0; }
+.leave-sum td.actions .btn { padding: 6px 8px; }
+.leave-sum th, .leave-sum td { padding-left: 7px; padding-right: 7px; }
+.name-btn { white-space: nowrap; border: 0; background: transparent; padding: 0; font: 700 1rem "Segoe UI", sans-serif; color: var(--ink); cursor: pointer; text-align: left; }
+.name-btn .pen { color: var(--ink-3); font-weight: 400; font-size: .85rem; }
+.name-btn:hover { color: var(--accent-2); text-decoration: underline; }
