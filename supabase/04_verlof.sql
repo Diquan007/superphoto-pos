@@ -99,6 +99,7 @@ create or replace function app.sync_store_staff() returns void
 language sql security definer set search_path = app, public, extensions as $$
   update app.stores s set staff = coalesce((select array_agg(e.name order by e.name) from app.employees e
                                             where e.store_code = s.code and e.active), '{}')
+  where s.code in ('MAH','IND')        -- Supabase weigert een UPDATE zonder WHERE
 $$;
 
 -- Saldo van één medewerker voor één jaar (berekent het meegenomen saldo uit het vorige jaar)
