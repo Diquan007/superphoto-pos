@@ -39,7 +39,9 @@ Elke dag vult de medewerker die op de kassa werkt in wie er vandaag werkt.
 2. Vink iedereen aan die vandaag werkt. Werkt iemand van de andere winkel vandaag bij u, vink die dan aan onder **Vandaag hier uit de andere winkel**.
 3. Klik **Opslaan**.
 
-U ziet op dezelfde pagina ook de andere winkel en wie er verlof heeft. Met **‹ Vorige dag** kijkt u terug. Gisteren en eerder kunt u niet meer wijzigen. Klopt er iets niet, geef het dan door aan de beheerder.
+Bij iedereen die je aanvinkt kies je **Hele dag** of **Halve dag**, en eventueel **van** en **tot** (tijd) en een **opmerking**. Werkt iemand een halve dag in Mahony en een halve dag in Indira, dan vult elke kassa zijn eigen halve dag in. Wie vakantie heeft of ziek is, kan niet aangevinkt worden.
+
+U ziet op dezelfde pagina ook de andere winkel en wie er verlof heeft. Met **‹ Vorige dag** kijkt u terug. Gisteren en eerder kunt u niet meer wijzigen. Iemand kan per dag samen niet meer dan één dag werken. Klopt er iets niet, geef het dan door aan de beheerder.
 
 ## Mijn verlof bekijken
 Op het startscherm en in het tabblad Bezetting staat de knop **Mijn verlof bekijken**. Kies uw naam en voer uw **eigen pincode** in (die krijgt u van de beheerder). U ziet hoeveel vakantiedagen u nog heeft, wat u heeft opgenomen, wat er gepland staat en alle gewerkte dagen per maand. U kunt niets wijzigen. Het venster sluit vanzelf na 2 minuten.

@@ -67,6 +67,21 @@ create table if not exists app.attendance (
 );
 create index if not exists attendance_day_store on app.attendance(day, store_code);
 
+-- hele of halve dag, tijden en opmerking; een halve dag in elke winkel op één dag mag
+alter table app.attendance add column if not exists fraction numeric(2,1) not null default 1;
+alter table app.attendance add column if not exists time_from time;
+alter table app.attendance add column if not exists time_to time;
+alter table app.attendance add column if not exists note text;
+alter table app.attendance drop constraint if exists attendance_fraction_check;
+alter table app.attendance add constraint attendance_fraction_check check (fraction in (0.5, 1));
+do $$ begin
+  if exists (select 1 from pg_constraint where conname = 'attendance_pkey'
+             and pg_get_constraintdef(oid) not like '%store_code%') then
+    alter table app.attendance drop constraint attendance_pkey;
+    alter table app.attendance add primary key (day, employee_id, store_code);
+  end if;
+end $$;
+
 insert into app.settings(key, value) values ('verlof_ziek_doorbetaald', '5'), ('verlof_max_meenemen', '3')
 on conflict (key) do nothing;
 
@@ -157,7 +172,8 @@ language sql stable security definer set search_path = app, public, extensions a
     'day', p_day, 'today', app.today(),
     'stores', (select jsonb_agg(jsonb_build_object(
         'code', s.code,
-        'workers', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'name', e.name, 'home', e.store_code) order by e.name)
+        'workers', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'name', e.name, 'home', e.store_code,
+                         'fraction', a.fraction, 'time_from', to_char(a.time_from, 'HH24:MI'), 'time_to', to_char(a.time_to, 'HH24:MI'), 'note', a.note) order by e.name)
                      from app.attendance a join app.employees e on e.id = a.employee_id
                      where a.day = p_day and a.store_code = s.code), '[]'::jsonb),
         'entered_by', (select a.entered_by from app.attendance a where a.day = p_day and a.store_code = s.code order by a.entered_at desc limit 1),
@@ -171,25 +187,65 @@ language sql stable security definer set search_path = app, public, extensions a
                    from app.employees e where e.active), '[]'::jsonb))
 $$;
 
-create or replace function app.set_roster(p_day date, p_store text, p_ids bigint[], p_by text) returns void
+create or replace function app.roster_entries(p jsonb)
+returns table (employee_id bigint, fraction numeric, time_from time, time_to time, note text)
+language sql immutable as $$
+  select (x->>'id')::bigint, coalesce(nullif(x->>'fraction', '')::numeric, 1),
+         nullif(x->>'from', '')::time, nullif(x->>'to', '')::time, nullif(left(trim(x->>'note'), 200), '')
+  from jsonb_array_elements(p) x
+$$;
+
+-- Bezetting van één winkel op één dag opslaan.
+-- p_entries = [{"id":7, "fraction":1|0.5, "from":"08:00", "to":"16:00", "note":"..."}]
+create or replace function app.set_roster(p_day date, p_store text, p_entries jsonb, p_by text) returns void
 language plpgsql security definer set search_path = app, public, extensions as $$
-declare v_clash text;
+declare v_bad text; r record;
 begin
-  p_ids := coalesce(p_ids, '{}');
-  select string_agg(e.name || ' (' || case a.store_code when 'MAH' then 'Mahony' else 'Indira' end || ')', ', ') into v_clash
-    from app.attendance a join app.employees e on e.id = a.employee_id
-    where a.day = p_day and a.store_code <> p_store and a.employee_id = any(p_ids);
-  if v_clash is not null then
-    perform app.err('Al ingevuld bij de andere winkel: ' || v_clash || '. Iemand kan maar in één winkel per dag werken.');
+  p_entries := coalesce(p_entries, '[]'::jsonb);
+  begin
+    perform array_agg(t) from app.roster_entries(p_entries) t;
+  exception when others then perform app.err('Ongeldige tijd of invoer. Gebruik tijden als 08:00.');
+  end;
+  if (select count(*) <> count(distinct employee_id) from app.roster_entries(p_entries)) then
+    perform app.err('Iemand staat twee keer in de lijst.');
   end if;
-  if exists (select 1 from unnest(p_ids) i where not exists (select 1 from app.employees e where e.id = i and e.active)) then
+  if exists (select 1 from app.roster_entries(p_entries) where fraction not in (0.5, 1)) then perform app.err('Kies een hele of een halve dag.'); end if;
+  select string_agg(e.name, ', ') into v_bad from app.roster_entries(p_entries) t join app.employees e on e.id = t.employee_id
+    where t.time_from is not null and t.time_to is not null and t.time_to <= t.time_from;
+  if v_bad is not null then perform app.err('De eindtijd moet na de begintijd liggen: ' || v_bad || '.'); end if;
+  if exists (select 1 from app.roster_entries(p_entries) t where not exists (select 1 from app.employees e where e.id = t.employee_id and e.active)) then
     perform app.err('Onbekende medewerker in de lijst.');
   end if;
-  delete from app.attendance where day = p_day and store_code = p_store and not (employee_id = any(p_ids));
-  insert into app.attendance(day, employee_id, store_code, entered_by)
-  select p_day, i, p_store, left(p_by, 50) from unnest(p_ids) i
-  on conflict (day, employee_id) do update set entered_by = excluded.entered_by, entered_at = now();
+  -- wie vakantie heeft of ziek is, kan niet werken
+  select string_agg(distinct e.name || ' (' || l.kind || ')', ', ') into v_bad
+    from app.roster_entries(p_entries) t join app.employees e on e.id = t.employee_id
+    join app.leave l on l.employee_id = t.employee_id and p_day between l.date_from and l.date_to and l.kind in ('vakantie', 'ziek');
+  if v_bad is not null then
+    perform app.err('Heeft vandaag verlof en kan niet ingevuld worden: ' || v_bad || '. Pas eerst het verlof aan bij Personeel & verlof.');
+  end if;
+  -- samen met de andere winkel niet meer dan één dag
+  select string_agg(e.name || ' (' || case a.store_code when 'MAH' then 'Mahony' else 'Indira' end
+                    || case when a.fraction = 1 then ', hele dag' else ', halve dag' end || ')', ', ') into v_bad
+    from app.roster_entries(p_entries) t join app.attendance a on a.employee_id = t.employee_id and a.day = p_day and a.store_code <> p_store
+    join app.employees e on e.id = t.employee_id
+    where a.fraction + t.fraction > 1;
+  if v_bad is not null then
+    perform app.err('Al ingevuld bij de andere winkel: ' || v_bad || '. Samen mag het niet meer dan één dag zijn; kies een halve dag.');
+  end if;
+  delete from app.attendance a where a.day = p_day and a.store_code = p_store
+    and not exists (select 1 from app.roster_entries(p_entries) t where t.employee_id = a.employee_id);
+  insert into app.attendance(day, employee_id, store_code, entered_by, fraction, time_from, time_to, note)
+  select p_day, t.employee_id, p_store, left(p_by, 50), t.fraction, t.time_from, t.time_to, t.note from app.roster_entries(p_entries) t
+  on conflict (day, employee_id, store_code) do update
+    set fraction = excluded.fraction, time_from = excluded.time_from, time_to = excluded.time_to, note = excluded.note,
+        entered_by = excluded.entered_by, entered_at = now();
 end $$;
+
+-- oude vorm (lijst van id's = hele dagen), voor kassa's die nog niet bijgewerkt zijn
+create or replace function app.ids_to_entries(p_ids bigint[]) returns jsonb
+language sql immutable as $$ select coalesce(jsonb_agg(jsonb_build_object('id', i, 'fraction', 1)), '[]'::jsonb) from unnest(p_ids) i $$;
+
+drop function if exists app.set_roster(date, text, bigint[], text);
 
 -- ===================== kassa: bezetting =====================
 
@@ -208,7 +264,18 @@ begin
   if p_day is distinct from app.today() then
     perform app.err('Alleen de bezetting van vandaag kan worden ingevuld. Eerdere dagen kan alleen de beheerder wijzigen.');
   end if;
-  perform app.set_roster(p_day, v_store, p_ids, coalesce(nullif(trim(p_staff), ''), 'kassa'));
+  perform app.set_roster(p_day, v_store, app.ids_to_entries(p_ids), coalesce(nullif(trim(p_staff), ''), 'kassa'));
+  return app.roster_json(p_day);
+end $$;
+
+create or replace function public.pos_roster_save(p_token uuid, p_day date, p_entries jsonb, p_staff text) returns jsonb
+language plpgsql security definer set search_path = app, public, extensions as $$
+declare v_store text := app.check_session(p_token, 'terminal');
+begin
+  if p_day is distinct from app.today() then
+    perform app.err('Alleen de bezetting van vandaag kan worden ingevuld. Eerdere dagen kan alleen de beheerder wijzigen.');
+  end if;
+  perform app.set_roster(p_day, v_store, p_entries, coalesce(nullif(trim(p_staff), ''), 'kassa'));
   return app.roster_json(p_day);
 end $$;
 
@@ -249,7 +316,8 @@ begin
     'name', e.name, 'store_code', e.store_code, 'year', v_year, 'today', app.today(),
     'balance', app.leave_balance(v_emp, v_year),
     'leave', app.leave_rows(v_emp, v_year),
-    'worked', coalesce((select jsonb_agg(jsonb_build_object('day', day, 'store_code', store_code) order by day desc)
+    'worked', coalesce((select jsonb_agg(jsonb_build_object('day', day, 'store_code', store_code, 'fraction', fraction,
+                   'time_from', to_char(time_from, 'HH24:MI'), 'time_to', to_char(time_to, 'HH24:MI'), 'note', note) order by day desc, store_code desc)
                  from app.attendance where employee_id = v_emp and extract(year from day) = v_year), '[]'::jsonb));
 end $$;
 
@@ -268,7 +336,17 @@ begin
   perform app.check_session(p_token, 'admin');
   if p_store not in ('MAH','IND') then perform app.err('Onbekende winkel'); end if;
   if p_day > app.today() + 60 then perform app.err('Zo ver vooruit kan de bezetting niet worden ingevuld.'); end if;
-  perform app.set_roster(p_day, p_store, p_ids, 'beheerder');
+  perform app.set_roster(p_day, p_store, app.ids_to_entries(p_ids), 'beheerder');
+  return app.roster_json(p_day);
+end $$;
+
+create or replace function public.pos_admin_roster_save(p_token uuid, p_day date, p_store text, p_entries jsonb) returns jsonb
+language plpgsql security definer set search_path = app, public, extensions as $$
+begin
+  perform app.check_session(p_token, 'admin');
+  if p_store not in ('MAH','IND') then perform app.err('Onbekende winkel'); end if;
+  if p_day > app.today() + 60 then perform app.err('Zo ver vooruit kan de bezetting niet worden ingevuld.'); end if;
+  perform app.set_roster(p_day, p_store, p_entries, 'beheerder');
   return app.roster_json(p_day);
 end $$;
 
@@ -281,7 +359,7 @@ begin
     'employees', coalesce((select jsonb_agg(jsonb_build_object(
         'id', e.id, 'name', e.name, 'store_code', e.store_code, 'active', e.active, 'has_pin', e.pin_hash is not null,
         'workdays', e.workdays, 'balance', app.leave_balance(e.id, p_year),
-        'worked', (select count(*) from app.attendance a where a.employee_id = e.id and extract(year from a.day) = p_year))
+        'worked', (select coalesce(sum(a.fraction), 0) from app.attendance a where a.employee_id = e.id and extract(year from a.day) = p_year))
         order by e.store_code desc, e.name)
       from app.employees e), '[]'::jsonb),
     'leave', app.leave_rows(null, p_year));
@@ -299,7 +377,7 @@ begin
                    from app.employees where active), '[]'::jsonb),
     'leave', coalesce((select jsonb_agg(jsonb_build_object('employee_id', employee_id, 'kind', kind, 'date_from', date_from, 'date_to', date_to))
                from app.leave where date_to >= v_from and date_from <= v_to), '[]'::jsonb),
-    'attendance', coalesce((select jsonb_agg(jsonb_build_object('day', day, 'employee_id', employee_id, 'store_code', store_code))
+    'attendance', coalesce((select jsonb_agg(jsonb_build_object('day', day, 'employee_id', employee_id, 'store_code', store_code, 'fraction', fraction))
                     from app.attendance where day between v_from and v_to), '[]'::jsonb));
 end $$;
 

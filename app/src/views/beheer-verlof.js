@@ -42,7 +42,7 @@ function saldo(body, ov, rerender) {
       <td class="r">${dnum(b.bijzonder)}</td>
       <td class="r b ${Number(b.remaining) < 0 ? 'error-text' : ''}">${dnum(b.remaining)}</td>
       <td class="r">${dnum(b.carry_out)}</td><td class="r">${dnum(b.payout)}</td>
-      <td class="r">${e.worked}</td>
+      <td class="r">${dnum(e.worked)}</td>
       <td class="c">${raw(e.has_pin ? '✓' : '<span class="warn-text">geen</span>')}</td>
       <td class="actions"><button class="btn small" data-add="${e.id}">+ Verlof</button><button class="btn small ghost" data-set="${e.id}">Dagen &amp; pin</button></td></tr>`;
   };
@@ -182,13 +182,13 @@ async function maand(body, ov, rerender) {
   const dayList = Array.from({ length: n }, (_, i) => dayStr(new Date(year, month - 1, i + 1)));
   const cell = {};   // `${emp}|${day}` -> {kind, store}
   for (const l of m.leave) for (const d of dayList) if (d >= l.date_from && d <= l.date_to) (cell[l.employee_id + '|' + d] ||= {}).kind = l.kind;
-  for (const a of m.attendance) (cell[a.employee_id + '|' + a.day] ||= {}).store = a.store_code;
+  for (const a of m.attendance) ((cell[a.employee_id + '|' + a.day] ||= {}).work ||= []).push(a);
   const emps = m.employees;
-  const count = (st, d) => m.attendance.filter(a => a.day === d && a.store_code === st).length;
+  const count = (st, d) => m.attendance.filter(a => a.day === d && a.store_code === st).reduce((x, a) => x + Number(a.fraction || 1), 0);
 
   body.innerHTML = html`
     <div class="year-nav"><button class="btn small" data-mn="-1">‹</button><b>${MONTHS[month - 1]} ${year}</b><button class="btn small" data-mn="1">›</button></div>
-    <div class="legend small"><span class="mcell work-MAH">M</span> werkt in Mahony <span class="mcell work-IND">I</span> werkt in Indira
+    <div class="legend small"><span class="mcell work-MAH">M</span> werkt in Mahony <span class="mcell work-IND">I</span> werkt in Indira <span class="mcell work-MAH">M½</span> halve dag <span class="mcell work-both">M/I</span> in beide
       <span class="mcell lv-vakantie">V</span> vakantie <span class="mcell lv-ziek">Z</span> ziek <span class="mcell lv-bijzonder">B</span> bijzonder verlof
       <span class="muted">· klik op een vakje om verlof in te voeren</span></div>
     <div class="table-wrap month-wrap"><table class="month-grid"><thead><tr><th class="mname"></th>
@@ -199,14 +199,17 @@ async function maand(body, ov, rerender) {
           ${raw(dayList.map(d => {
             const c = cell[e.id + '|' + d] || {}, dd = dayDate(d);
             const off = !(e.workdays || FULL_WEEK).includes(dd.getDay() || 7);
-            const cls = [dd.getDay() === 0 ? 'sun' : '', d === m.today ? 'today' : '', c.kind ? 'lv-' + c.kind : c.store ? 'work-' + c.store : off ? 'off' : ''].join(' ');
-            const txt = c.kind ? KIND_LETTER[c.kind] + (c.store ? '!' : '') : c.store ? c.store[0] : '';
-            const tip = [c.kind ? KIND_NL[c.kind] : '', c.store ? 'werkte in ' + STORE_NAMES[c.store] : ''].filter(Boolean).join(', ');
+            const w = c.work || [];
+            const ws = w.length > 1 ? 'both' : w.length ? w[0].store_code : '';
+            const wtxt = w.length > 1 ? 'M/I' : w.length ? w[0].store_code[0] + (Number(w[0].fraction) === 0.5 ? '½' : '') : '';
+            const cls = [dd.getDay() === 0 ? 'sun' : '', d === m.today ? 'today' : '', c.kind ? 'lv-' + c.kind : ws ? 'work-' + ws : off ? 'off' : ''].join(' ');
+            const txt = c.kind ? KIND_LETTER[c.kind] + (w.length ? '!' : '') : wtxt;
+            const tip = [c.kind ? KIND_NL[c.kind] : '', ...w.map(a => (Number(a.fraction) === 0.5 ? 'halve dag ' : '') + 'in ' + STORE_NAMES[a.store_code])].filter(Boolean).join(', ');
             return html`<td class="mcell ${cls}" data-e="${e.id}" data-d="${d}" title="${e.name} ${fmtDate(d)}${tip ? ': ' + tip : ''}">${txt}</td>`;
           }).join(''))}
-          <td class="r">${m.attendance.filter(a => a.employee_id === e.id).length}</td></tr>`).join(''))}`).join(''))}
-      <tr class="msum"><td class="mname">Aantal in Mahony</td>${raw(dayList.map(d => html`<td class="c">${count('MAH', d) || ''}</td>`).join(''))}<td></td></tr>
-      <tr class="msum"><td class="mname">Aantal in Indira</td>${raw(dayList.map(d => html`<td class="c">${count('IND', d) || ''}</td>`).join(''))}<td></td></tr>
+          <td class="r">${dnum(m.attendance.filter(a => a.employee_id === e.id).reduce((x, a) => x + Number(a.fraction || 1), 0))}</td></tr>`).join(''))}`).join(''))}
+      <tr class="msum"><td class="mname">Aantal in Mahony</td>${raw(dayList.map(d => html`<td class="c">${count('MAH', d) ? dnum(count('MAH', d)) : ''}</td>`).join(''))}<td></td></tr>
+      <tr class="msum"><td class="mname">Aantal in Indira</td>${raw(dayList.map(d => html`<td class="c">${count('IND', d) ? dnum(count('IND', d)) : ''}</td>`).join(''))}<td></td></tr>
       </tbody></table></div>
     <p class="muted small">Gearceerd = geen vaste werkdag (parttime). Een uitroepteken (bijv. V!) betekent: verlof ingevoerd, maar die dag ook als werkend ingevuld. De bezetting zelf wijzigt u in het tabblad Bezetting.</p>`;
 

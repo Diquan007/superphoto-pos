@@ -31,6 +31,13 @@ export const isPartTime = wd => !!wd && !FULL_WEEK.every(d => wd.includes(d));
 export const wdText = wd => (wd || FULL_WEEK).map(d => WD_SHORT[d]).join(', ');
 const MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
 
+// '08:00–12:00', 'vanaf 08:00', 'tot 12:00'
+export function shiftText(w) {
+  const f = w.time_from || w.from, t = w.time_to || w.to;
+  return f && t ? `${f}–${t}` : f ? `vanaf ${f}` : t ? `tot ${t}` : '';
+}
+export const workedTotal = list => list.reduce((a, w) => a + Number(w.fraction || 1), 0);
+
 // alle gewerkte dagen onder elkaar, per maand
 export function workedList(worked) {
   if (!worked.length) return '<p class="muted">Nog geen dagen.</p>';
@@ -40,9 +47,9 @@ export function workedList(worked) {
     if (!byMonth.length || byMonth[byMonth.length - 1].key !== key) byMonth.push({ key, days: [] });
     byMonth[byMonth.length - 1].days.push(w);
   }
-  return html`<div class="worked-box">${raw(byMonth.map(m => html`<div class="worked-month">
-      <h4><span class="mn">${MONTHS[+m.key.slice(5, 7) - 1]}</span> ${m.key.slice(0, 4)} <span class="muted">· ${m.days.length} ${m.days.length === 1 ? 'dag' : 'dagen'}</span></h4>
-      <ul class="worked-ul">${raw(m.days.map(w => html`<li><span class="wd">${WD_SHORT[dayDate(w.day).getDay() || 7]}</span> ${fmtDate(w.day)} <span class="muted">${STORE_NAMES[w.store_code]}</span></li>`).join(''))}</ul></div>`).join(''))}</div>`;
+  return html`<div class="worked-box">${raw(byMonth.map(m => { const n = workedTotal(m.days); return html`<div class="worked-month">
+      <h4><span class="mn">${MONTHS[+m.key.slice(5, 7) - 1]}</span> ${m.key.slice(0, 4)} <span class="muted">· ${dnum(n)} ${n === 1 ? 'dag' : 'dagen'}</span></h4>
+      <ul class="worked-ul">${raw(m.days.map(w => html`<li><span class="wd">${WD_SHORT[dayDate(w.day).getDay() || 7]}</span> ${fmtDate(w.day)} <span class="muted">${STORE_NAMES[w.store_code]}</span>${raw(Number(w.fraction) === 0.5 ? ' <span class="tag amber">halve dag</span>' : '')}${raw(shiftText(w) ? html` <span class="shift">${shiftText(w)}</span>` : '')}${raw(w.note ? html`<div class="muted small wnote-line">${w.note}</div>` : '')}</li>`).join(''))}</ul></div>`; }).join(''))}</div>`;
 }
 
 // Saldo-kaartjes (zelfde opbouw voor medewerker en beheerder)
@@ -115,7 +122,7 @@ export async function openMyLeave() {
       ${raw(b.set ? html`<p class="small muted">${raw(yearEndText(b))}</p>` : '')}
       ${raw(coming.length ? html`<h3>Gepland</h3>${raw(leaveTable(coming))}` : '')}
       <h3>Opgenomen</h3>${raw(leaveTable(past))}
-      <h3>Gewerkt in ${year}: ${data.worked.length} ${data.worked.length === 1 ? 'dag' : 'dagen'}</h3>
+      <h3>Gewerkt in ${year}: ${dnum(workedTotal(data.worked))} ${workedTotal(data.worked) === 1 ? 'dag' : 'dagen'}</h3>
       ${raw(workedList(data.worked))}
       <p class="small muted">Klopt er iets niet? Bespreek het met de beheerder. U kunt hier zelf niets wijzigen.</p>`;
   };
