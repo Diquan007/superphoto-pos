@@ -42,9 +42,12 @@ Elke dag vult de medewerker die op de kassa werkt in wie er vandaag werkt.
 U ziet op dezelfde pagina ook de andere winkel en wie er verlof heeft. Met **‹ Vorige dag** kijkt u terug. Gisteren en eerder kunt u niet meer wijzigen. Klopt er iets niet, geef het dan door aan de beheerder.
 
 ## Mijn verlof bekijken
-Op het startscherm en in het tabblad Bezetting staat de knop **Mijn verlof bekijken**. Kies uw naam en voer uw **eigen pincode** in (die krijgt u van de beheerder). U ziet hoeveel vakantiedagen u nog heeft, wat u heeft opgenomen en wat er gepland staat. U kunt niets wijzigen. Het venster sluit vanzelf na 2 minuten.
+Op het startscherm en in het tabblad Bezetting staat de knop **Mijn verlof bekijken**. Kies uw naam en voer uw **eigen pincode** in (die krijgt u van de beheerder). U ziet hoeveel vakantiedagen u nog heeft, wat u heeft opgenomen, wat er gepland staat en alle gewerkte dagen per maand. U kunt niets wijzigen. Het venster sluit vanzelf na 2 minuten.
 
 Op uw telefoon werkt het ook: open de webversie van de kassa en tik op **Mijn verlof bekijken**. Hiervoor is internet nodig.
+
+## Datums invullen
+Alle datums staan als **dd-mm-jjjj**. Typ alleen de cijfers (bijv. 07122026); de streepjes komen vanzelf. Of klik op het kalendertje.
 
 ## Geen internet?
 Bovenaan staat dan **Offline**. Verkopen en Kas uit werken gewoon; de bon krijgt een **voorlopig nummer** (bijv. V0911-143005). Zodra er weer internet is, worden ze automatisch verstuurd en krijgen ze een echt transactienummer. Ophaalorders, restbetalingen en dagafsluiting werken alleen online.
