@@ -41,6 +41,8 @@ Elke dag vult de medewerker die op de kassa werkt in wie er vandaag werkt.
 
 Bij iedereen die je aanvinkt kies je **Hele dag** of **Halve dag**, en eventueel **van** en **tot** (tijd) en een **opmerking**. Werkt iemand een halve dag in Mahony en een halve dag in Indira, dan vult elke kassa zijn eigen halve dag in. Wie vakantie heeft of ziek is, kan niet aangevinkt worden.
 
+**Zaterdag:** de bezetting van zaterdag vul je op **vrijdag** in, voor **beide winkels**. Op vrijdag staat bovenaan "Morgen is het zaterdag" met de knop **Naar zaterdag**. Op zaterdag zelf kan het nog worden aangepast. Is een winkel op zaterdag gesloten, dan staat daar "Gesloten op zaterdag".
+
 U ziet op dezelfde pagina ook de andere winkel en wie er verlof heeft. Met **‹ Vorige dag** kijkt u terug. Gisteren en eerder kunt u niet meer wijzigen. Iemand kan per dag samen niet meer dan één dag werken. Klopt er iets niet, geef het dan door aan de beheerder.
 
 ## Mijn verlof bekijken

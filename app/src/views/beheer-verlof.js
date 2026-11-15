@@ -15,7 +15,7 @@ export async function verlofSection(main) {
   const rerender = () => verlofSection(main);
   main.innerHTML = html`<div class="view-head"><h1>Personeel &amp; verlof</h1>
       <div class="filters"><button class="btn" id="vEmpNew">+ Medewerker</button><button class="btn primary" id="vNew">+ Verlof invoeren</button></div></div>
-    <div class="seg big" id="vMode"><button data-m="saldo">Saldo per medewerker</button><button data-m="maand">Maandoverzicht</button></div>
+    <div class="seg big" id="vMode"><button data-m="saldo">Saldo per medewerker</button><button data-m="maand">Maandoverzicht</button><button data-m="gesloten">Zaterdag gesloten</button></div>
     <div id="vBody"><p class="muted">Laden…</p></div>`;
   $$('#vMode button', main).forEach(b => { b.classList.toggle('active', b.dataset.m === mode); b.onclick = () => { mode = b.dataset.m; rerender(); }; });
   const body = $('#vBody', main);
@@ -28,6 +28,7 @@ export async function verlofSection(main) {
     rerender();
   };
   if (mode === 'saldo') return saldo(body, ov, rerender);
+  if (mode === 'gesloten') return gesloten(body, rerender);
   return maand(body, ov, rerender);
 }
 
@@ -271,4 +272,32 @@ async function editEmployee(e, ov) {
     refreshCatalog();
     return isNew && r && r.id ? r.id : true;
   } catch (err) { alertBox('Niet opgeslagen', err.message); return false; }
+}
+
+// ================= winkel op zaterdag gesloten =================
+async function gesloten(body, rerender) {
+  const list = await adminCall('pos_admin_closures');
+  body.innerHTML = html`<p class="muted">Is een winkel in een periode op zaterdag dicht? Vul het hier in. Bij Bezetting staat die winkel dan op "Gesloten" en kan niemand er op zaterdag ingevuld worden.</p>
+    <div class="card"><div class="grid2">
+      <label>Winkel<select id="cStore"><option value="MAH">Mahony</option><option value="IND">Indira</option></select></label>
+      <label>Opmerking<input id="cNote" maxlength="120" placeholder="bijv. verbouwing, rustige periode"></label>
+      <label>Van<input type="date" id="cFrom"></label><label>Tot en met<input type="date" id="cTo"></label></div>
+      <button class="btn primary" id="cAdd">+ Toevoegen</button></div>
+    ${raw(list.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>Winkel</th><th>Periode</th><th class="r">Zaterdagen</th><th>Opmerking</th><th></th></tr></thead><tbody>
+      ${raw(list.map(c => html`<tr><td class="b">${STORE_NAMES[c.store_code]}</td><td>${fmtDate(c.date_from)} t/m ${fmtDate(c.date_to)}</td><td class="r">${c.saturdays}</td><td class="small">${c.note || ''}</td>
+        <td class="actions"><button class="btn small ghost danger-text" data-cdel="${c.id}">Verwijder</button></td></tr>`).join(''))}</tbody></table></div>`
+      : '<p class="muted">Beide winkels zijn op zaterdag open.</p>')}`;
+  $('#cFrom', body).onchange = () => { if (!$('#cTo', body).value || $('#cTo', body).value < $('#cFrom', body).value) $('#cTo', body).value = $('#cFrom', body).value; };
+  $('#cAdd', body).onclick = async () => {
+    try {
+      await adminCall('pos_admin_closure_save', { p: { store_code: $('#cStore', body).value, date_from: $('#cFrom', body).value, date_to: $('#cTo', body).value, note: $('#cNote', body).value } });
+      toast('Opgeslagen.', 'ok'); rerender();
+    } catch (e) { alertBox('Niet opgeslagen', e.message); }
+  };
+  body.onclick = async e => {
+    const d = e.target.closest('[data-cdel]'); if (!d) return;
+    const c = list.find(x => x.id === +d.dataset.cdel);
+    if (!(await confirmBox('Verwijderen', `${STORE_NAMES[c.store_code]} ${fmtDate(c.date_from)} t/m ${fmtDate(c.date_to)}: weer open op zaterdag?`, 'Verwijderen', 'danger'))) return;
+    await adminCall('pos_admin_closure_delete', { p_id: c.id }); rerender();
+  };
 }

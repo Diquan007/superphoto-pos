@@ -387,3 +387,7 @@ label > .datef { margin-top: 4px; }
 .slip-tbl input.amt { width: 130px; text-align: right; }
 .slip-tbl td:last-child { width: 36px; }
 .pay-nav .small-seg { width: 140px; }
+.closed-col { background: repeating-linear-gradient(135deg, #faf8f4 0 8px, #f2eee7 8px 16px); }
+.closed-note { font-weight: 700; font-size: 1.1rem; color: var(--ink-2); margin: 6px 0; }
+.sat-hint { background: var(--amber-soft, #fdf3e1); border: 1px solid #f0d49a; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-weight: 600; }
+.sat-note { color: var(--accent-2); font-weight: 600; }

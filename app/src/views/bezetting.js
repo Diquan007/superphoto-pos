@@ -1,8 +1,9 @@
 // Tabblad Bezetting: wie werkt er vandaag in Mahony en Indira, en wie heeft verlof.
 // Per persoon: hele of halve dag, van/tot en een opmerking. Een halve dag in elke winkel mag.
 // Wie vakantie heeft of ziek is, kan niet aangevinkt worden.
-// De kassa vult alleen VANDAAG in voor de eigen winkel. Eerdere dagen staan vast;
-// alleen de beheerder kan die nog wijzigen.
+// De kassa vult VANDAAG in voor de eigen winkel. De zaterdag vult het personeel op de vrijdag
+// ervoor in, voor beide winkels (en op de zaterdag zelf nog). Eerdere dagen staan vast;
+// alleen de beheerder kan die nog wijzigen. Een winkel kan op zaterdag gesloten zijn (instelling beheerder).
 import { S, call, adminCall, adminLogin, requireStaff, staff } from '../app.js';
 import { local, html, raw, $, $$, toast, alertBox, confirmBox, isNet, fmtDate, fmtTime, STORE_NAMES } from '../lib.js';
 import { KIND_NL, KIND_TAG, addDays, weekday, period, openMyLeave, shiftText } from '../verlof.js';
@@ -68,11 +69,14 @@ export function create(root) {
     const col = st => {
       if (edit === st) return editCol(st);
       const s = data.stores.find(x => x.code === st);
+      if (s.closed && !s.workers.length) return html`<div class="store-col ${st} card closed-col">
+        <h2>${STORE_NAMES[st]}</h2><p class="closed-note">Gesloten op zaterdag</p>
+        <p class="muted small">${period(s.closed.date_from, s.closed.date_to)}${raw(s.closed.note ? html` · ${s.closed.note}` : '')}</p></div>`;
       const workers = pending && pending.store === st
         ? toEntries(pending).map(en => { const e = data.employees.find(x => x.id === en.id); return e && { ...e, home: e.store_code, fraction: en.fraction, time_from: en.from, time_to: en.to, note: en.note }; }).filter(Boolean)
         : s.workers;
       const total = workers.reduce((a, w) => a + Number(w.fraction || 1), 0);
-      const canEdit = isAdmin() ? day <= addDays(today(), 60) : (isToday && st === S.store.code);
+      const canEdit = !s.closed && (isAdmin() ? day <= addDays(today(), 60) : ((isToday && st === S.store.code) || data.saturday_open));
       return html`<div class="store-col ${st} card">
         <h2>${STORE_NAMES[st]} <span class="muted small">${workers.length} ${workers.length === 1 ? 'persoon' : 'personen'}${raw(total !== workers.length ? ` · ${String(total).replace('.', ',')} dag` : '')}</span></h2>
         ${raw(workers.length ? html`<ul class="worker-list">${raw(workers.map(w => workerLine(w, st, leave)).join(''))}</ul>`
@@ -83,11 +87,14 @@ export function create(root) {
       </div>`;
     };
     const locked = !isAdmin() && day < today();
+    const friday = isToday && new Date(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)).getDay() === 5;
     $('#rBody', root).innerHTML = html`
       <h2 class="roster-day">${weekday(day)} ${fmtDate(day)}${raw(isToday ? ' <span class="tag green">vandaag</span>' : '')}</h2>
       ${raw(offline ? '<p class="warn-text">Geen internet: dit is de laatst bekende stand op deze computer.</p>' : '')}
       ${raw(locked ? '<p class="muted small">Deze dag staat vast. Alleen de beheerder kan nog iets wijzigen. <button class="btn small ghost" id="rAdmin">Als beheerder wijzigen</button></p>' : '')}
       ${raw(isAdmin() ? '<p class="small admin-note">U bent ingelogd als beheerder en kunt elke dag wijzigen.</p>' : '')}
+      ${raw(friday ? '<div class="sat-hint">Morgen is het zaterdag. Vul vandaag de bezetting van zaterdag in, voor beide winkels. <button class="btn small primary" data-nav="1">Naar zaterdag ›</button></div>' : '')}
+      ${raw(data.saturday_open && !isToday && !isAdmin() ? '<p class="small sat-note">Zaterdag: u kunt de bezetting van beide winkels invullen.</p>' : '')}
       <div class="store-cols">${raw(col('MAH'))}${raw(col('IND'))}</div>
       <div class="card"><h2>Afwezig wegens verlof</h2>
         ${raw(data.on_leave.length ? html`<ul class="worker-list">${raw(data.on_leave.map(l => html`<li><b>${l.name}</b> <span class="muted">(${STORE_NAMES[l.store_code]})</span>
@@ -139,6 +146,7 @@ export function create(root) {
       render();
     });
     const adm = $('#rAdmin', root); if (adm) adm.onclick = async () => { if (await adminLogin()) load(day); };
+    $$('#rBody [data-nav]', root).forEach(b => b.onclick = () => load(addDays(day, +b.dataset.nav)));
     const cancel = $('#rCancel', root); if (cancel) cancel.onclick = () => { edit = null; render(); };
     const ed = $('.store-col.editing', root);
     if (ed) {
@@ -174,9 +182,9 @@ export function create(root) {
       return;
     }
     const who = await requireStaff(); if (who === null) return;
-    const item = { day, store: S.store.code, entries, staff: who || staff() };
+    const item = { day, store: edit, entries, staff: who || staff() };
     try {
-      data = await call('pos_roster_save', { p_day: day, p_entries: entries, p_staff: item.staff });
+      data = await call('pos_roster_save', { p_day: day, p_entries: entries, p_staff: item.staff, p_store: edit });
       await local.store.set('roster_today', data);
       edit = null; toast('Opgeslagen.', 'ok'); render();
     } catch (e) {
@@ -190,9 +198,8 @@ export function create(root) {
   async function sync() {
     if (!S.rosterPending) S.rosterPending = await local.store.get(PENDING, null);
     const p = S.rosterPending; if (!p || !S.token) return;
-    if (p.store !== S.store.code) return;
     try {
-      const r = await call('pos_roster_save', { p_day: p.day, p_entries: toEntries(p), p_staff: p.staff });
+      const r = await call('pos_roster_save', { p_day: p.day, p_entries: toEntries(p), p_staff: p.staff, p_store: p.store });
       S.rosterPending = null; await local.store.set(PENDING, null);
       await local.store.set('roster_today', r);
       toast('De bezetting van vandaag is verstuurd.', 'ok');

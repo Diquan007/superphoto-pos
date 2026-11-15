@@ -884,7 +884,8 @@ begin
       'employees', (select coalesce(jsonb_agg(to_jsonb(x) - 'pin_hash'), '[]') from app.employees x),
       'leave_years', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave_years x),
       'leave', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave x),
-      'attendance', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.attendance x));
+      'attendance', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.attendance x),
+      'saturday_closures', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.saturday_closures x));
   end if;
   return v;
 end $$;

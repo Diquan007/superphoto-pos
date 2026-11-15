@@ -18,8 +18,8 @@ const WEEKDAYS = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrij
 export const weekday = s => WEEKDAYS[dayDate(s).getDay()];
 export const period = (f, t) => f === t ? fmtDate(f) : `${fmtDate(f)} t/m ${fmtDate(t)}`;
 
-// werkdagen tussen twee data volgens de vaste werkdagen van de medewerker (1 = ma ... 7 = zo; standaard ma t/m za)
-export const FULL_WEEK = [1, 2, 3, 4, 5, 6];
+// werkdagen tussen twee data volgens de vaste werkdagen van de medewerker (1 = ma ... 7 = zo; fulltime = ma t/m vr)
+export const FULL_WEEK = [1, 2, 3, 4, 5];
 export function workdays(from, to, wd = FULL_WEEK) {
   if (!from || !to || to < from) return 0;
   let n = 0;

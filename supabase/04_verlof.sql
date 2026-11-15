@@ -30,7 +30,26 @@ create table if not exists app.employees (
 );
 
 -- vaste werkdagen (1 = maandag ... 7 = zondag); parttimers werken minder dagen
-alter table app.employees add column if not exists workdays int[] not null default '{1,2,3,4,5,6}';
+alter table app.employees add column if not exists workdays int[] not null default '{1,2,3,4,5}';
+-- fulltime = maandag t/m vrijdag; zaterdagen worden apart geregeld
+alter table app.employees alter column workdays set default '{1,2,3,4,5}';
+do $$ begin   -- eenmalig: bestaande ma t/m za omzetten naar ma t/m vr
+  if not exists (select 1 from app.settings where key = 'werkdagen_ma_vr') then
+    update app.employees set workdays = '{1,2,3,4,5}' where workdays = '{1,2,3,4,5,6}';
+    insert into app.settings(key, value) values ('werkdagen_ma_vr', '1');
+  end if;
+end $$;
+
+-- winkel op zaterdag gesloten in een periode (alleen de beheerder stelt dit in)
+create table if not exists app.saturday_closures (
+  id         bigserial primary key,
+  store_code text not null references app.stores(code),
+  date_from  date not null,
+  date_to    date not null,
+  note       text,
+  created_at timestamptz not null default now(),
+  check (date_to >= date_from)
+);
 
 -- vakantiedagen per jaar; een jaar zonder regel neemt het aantal van het vorige jaar over
 create table if not exists app.leave_years (
@@ -170,8 +189,11 @@ create or replace function app.roster_json(p_day date) returns jsonb
 language sql stable security definer set search_path = app, public, extensions as $$
   select jsonb_build_object(
     'day', p_day, 'today', app.today(),
+    'saturday_open', extract(isodow from p_day) = 6 and p_day - app.today() between 0 and 1,
     'stores', (select jsonb_agg(jsonb_build_object(
         'code', s.code,
+        'closed', (select jsonb_build_object('date_from', c.date_from, 'date_to', c.date_to, 'note', c.note) from app.saturday_closures c
+                   where c.store_code = s.code and extract(isodow from p_day) = 6 and p_day between c.date_from and c.date_to limit 1),
         'workers', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'name', e.name, 'home', e.store_code,
                          'fraction', a.fraction, 'time_from', to_char(a.time_from, 'HH24:MI'), 'time_to', to_char(a.time_to, 'HH24:MI'), 'note', a.note) order by e.name)
                      from app.attendance a join app.employees e on e.id = a.employee_id
@@ -215,6 +237,11 @@ begin
   if v_bad is not null then perform app.err('De eindtijd moet na de begintijd liggen: ' || v_bad || '.'); end if;
   if exists (select 1 from app.roster_entries(p_entries) t where not exists (select 1 from app.employees e where e.id = t.employee_id and e.active)) then
     perform app.err('Onbekende medewerker in de lijst.');
+  end if;
+  -- winkel op zaterdag gesloten
+  if jsonb_array_length(p_entries) > 0 and extract(isodow from p_day) = 6 and exists (
+       select 1 from app.saturday_closures c where c.store_code = p_store and p_day between c.date_from and c.date_to) then
+    perform app.err('De winkel ' || case p_store when 'MAH' then 'Mahony' else 'Indira' end || ' is deze zaterdag gesloten.');
   end if;
   -- wie vakantie heeft of ziek is, kan niet werken
   select string_agg(distinct e.name || ' (' || l.kind || ')', ', ') into v_bad
@@ -268,15 +295,54 @@ begin
   return app.roster_json(p_day);
 end $$;
 
-create or replace function public.pos_roster_save(p_token uuid, p_day date, p_entries jsonb, p_staff text) returns jsonb
+-- Kassa: vandaag voor de eigen winkel. Zaterdag: op vrijdag (en op de zaterdag zelf) voor beide winkels.
+drop function if exists public.pos_roster_save(uuid, date, jsonb, text);
+create or replace function public.pos_roster_save(p_token uuid, p_day date, p_entries jsonb, p_staff text, p_store text default null) returns jsonb
 language plpgsql security definer set search_path = app, public, extensions as $$
-declare v_store text := app.check_session(p_token, 'terminal');
+declare v_store text := app.check_session(p_token, 'terminal'); v_target text := coalesce(p_store, v_store);
+        v_sat boolean := extract(isodow from p_day) = 6 and p_day - app.today() between 0 and 1;
 begin
-  if p_day is distinct from app.today() then
-    perform app.err('Alleen de bezetting van vandaag kan worden ingevuld. Eerdere dagen kan alleen de beheerder wijzigen.');
+  if v_target not in ('MAH','IND') then perform app.err('Onbekende winkel'); end if;
+  if not (v_sat or (p_day = app.today() and v_target = v_store)) then
+    perform app.err('Alleen de bezetting van vandaag (eigen winkel) kan worden ingevuld, en op vrijdag die van zaterdag (beide winkels). Eerdere dagen kan alleen de beheerder wijzigen.');
   end if;
-  perform app.set_roster(p_day, v_store, p_entries, coalesce(nullif(trim(p_staff), ''), 'kassa'));
+  perform app.set_roster(p_day, v_target, p_entries, coalesce(nullif(trim(p_staff), ''), 'kassa'));
   return app.roster_json(p_day);
+end $$;
+
+-- ===================== beheerder: zaterdag gesloten =====================
+
+create or replace function public.pos_admin_closures(p_token uuid) returns jsonb
+language plpgsql stable security definer set search_path = app, public, extensions as $$
+begin
+  perform app.check_session(p_token, 'admin');
+  return coalesce((select jsonb_agg(jsonb_build_object('id', id, 'store_code', store_code, 'date_from', date_from, 'date_to', date_to, 'note', note,
+           'saturdays', (select count(*) from generate_series(date_from, date_to, interval '1 day') d where extract(isodow from d) = 6))
+         order by date_from desc) from app.saturday_closures), '[]'::jsonb);
+end $$;
+
+create or replace function public.pos_admin_closure_save(p_token uuid, p jsonb) returns void
+language plpgsql security definer set search_path = app, public, extensions as $$
+declare v_from date := nullif(p->>'date_from', '')::date; v_to date := nullif(p->>'date_to', '')::date; v_store text := p->>'store_code';
+begin
+  perform app.check_session(p_token, 'admin');
+  if v_store not in ('MAH','IND') then perform app.err('Kies de winkel.'); end if;
+  if v_from is null or v_to is null or v_to < v_from then perform app.err('Vul een geldige periode in.'); end if;
+  if not exists (select 1 from generate_series(v_from, v_to, interval '1 day') d where extract(isodow from d) = 6) then
+    perform app.err('Er valt geen zaterdag in deze periode.');
+  end if;
+  if nullif(p->>'id', '') is null then
+    insert into app.saturday_closures(store_code, date_from, date_to, note) values (v_store, v_from, v_to, nullif(trim(p->>'note'), ''));
+  else
+    update app.saturday_closures set store_code = v_store, date_from = v_from, date_to = v_to, note = nullif(trim(p->>'note'), '') where id = (p->>'id')::bigint;
+  end if;
+end $$;
+
+create or replace function public.pos_admin_closure_delete(p_token uuid, p_id bigint) returns void
+language plpgsql security definer set search_path = app, public, extensions as $$
+begin
+  perform app.check_session(p_token, 'admin');
+  delete from app.saturday_closures where id = p_id;
 end $$;
 
 -- ===================== medewerker: eigen verlof bekijken =====================
@@ -451,7 +517,7 @@ begin
   if v_name = '' then perform app.err('Vul een naam in.'); end if;
   if v_store not in ('MAH','IND') then perform app.err('Kies de winkel.'); end if;
   select coalesce(array_agg(distinct d order by d), '{}') into v_days
-    from jsonb_array_elements_text(coalesce(p->'workdays', '[1,2,3,4,5,6]'::jsonb)) x(d0), lateral (select d0::int as d) y
+    from jsonb_array_elements_text(coalesce(p->'workdays', '[1,2,3,4,5]'::jsonb)) x(d0), lateral (select d0::int as d) y
     where d between 1 and 7;
   if cardinality(v_days) = 0 then perform app.err('Kies minstens één werkdag.'); end if;
   if exists (select 1 from app.employees where lower(name) = lower(v_name) and id is distinct from v_id) then
@@ -522,7 +588,8 @@ begin
       'employees', (select coalesce(jsonb_agg(to_jsonb(x) - 'pin_hash'), '[]') from app.employees x),
       'leave_years', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave_years x),
       'leave', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.leave x),
-      'attendance', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.attendance x));
+      'attendance', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.attendance x),
+      'saturday_closures', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from app.saturday_closures x));
   end if;
   return v;
 end $$;
