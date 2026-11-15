@@ -11,6 +11,7 @@ This guide takes you from nothing to two working registers. Plan about an hour, 
 | `02_functions.sql` | Database step 2: the rules (logins, sales, stock, end of day) |
 | `03_products.sql` | Database step 3: your 319 products and prices from the stock list |
 | `04_verlof.sql` | Database step 4: staffing (bezetting) and leave (verlof) |
+| `07_salaris.sql` | Database step 5: staff files, salary, advances, loans, payslips |
 | `05_verlof_testdata.sql` | Optional: test data for leave, only for trying it out |
 | `06_verlof_testdata_wissen.sql` | Removes all leave and staffing data again (run before going live) |
 | `superphoto-pos-source.zip` | The program's source code, for GitHub (automatic updates) |
@@ -29,7 +30,7 @@ This guide takes you from nothing to two working registers. Plan about an hour, 
 3. Wait until the project is ready (1–2 minutes).
 4. In the left menu, open **SQL Editor**, then **New query**.
 5. Open `01_schema.sql` in Notepad, select all (Ctrl+A), copy, paste it into the SQL Editor and click **Run**. You should see "Success. No rows returned".
-6. Do the same with `02_functions.sql`, then with `03_products.sql`, then with `04_verlof.sql`. Always in this order.
+6. Do the same with `02_functions.sql`, then with `03_products.sql`, then with `04_verlof.sql`, then with `07_salaris.sql`. Always in this order.
 7. Go to **Project Settings** (gear icon), then **API Keys**. Write down:
    - the **Project URL** (looks like `https://abcdefgh.supabase.co`). It's on the **Data API** page or the project's home page.
    - the **Publishable key** (starts with `sb_publishable_`). If you only see "anon public", that one works too.

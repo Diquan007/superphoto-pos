@@ -1,5 +1,6 @@
 // Beheer > Personeel & verlof: saldo per medewerker, verlof invoeren, maandoverzicht
 import { adminCall, refreshCatalog } from '../app.js';
+import { openDossier, deleteEmployee } from './dossier.js';
 import { html, raw, $, $$, toast, modal, alertBox, confirmBox, askPin, fmtDate, STORE_NAMES } from '../lib.js';
 import { KIND_NL, KIND_TAG, KIND_LETTER, dnum, days, workdays, balanceCards, yearEndText, leaveTable, dayDate, dayStr,
          FULL_WEEK, WD_SHORT, isPartTime, wdText } from '../verlof.js';
@@ -20,7 +21,12 @@ export async function verlofSection(main) {
   const body = $('#vBody', main);
   let ov = await adminCall('pos_admin_leave_overview', { p_year: year });
   $('#vNew', main).onclick = async () => { if (await editLeave(null, ov.employees)) rerender(); };
-  $('#vEmpNew', main).onclick = async () => { if (await editEmployee(null)) rerender(); };
+  $('#vEmpNew', main).onclick = async () => {
+    const id = await editEmployee(null);
+    if (!id) return;
+    if (typeof id === 'number') await openDossier({ id }, null);
+    rerender();
+  };
   if (mode === 'saldo') return saldo(body, ov, rerender);
   return maand(body, ov, rerender);
 }
@@ -34,7 +40,7 @@ function saldo(body, ov, rerender) {
   const row = e => {
     const b = e.balance;
     return html`<tr class="${e.active ? '' : 'inactive'}">
-      <td><button class="name-btn" data-emp="${e.id}" title="Naam, winkel, werkdagen, zichtbaar of verwijderen">${e.name} <span class="pen">✎</span></button>${raw(!e.active ? ' <span class="tag">onzichtbaar</span>' : '')}${raw(isPartTime(e.workdays) ? html`<br><span class="tag blue" title="Vaste werkdagen">parttime: ${wdText(e.workdays)}</span>` : '')}</td><td>${STORE_NAMES[e.store_code]}</td>
+      <td><button class="name-btn" data-emp="${e.id}" title="Dossier: gegevens, salaris, voorschotten, leningen, loonstroken">${e.name} <span class="pen">✎</span></button>${raw(!e.active ? ' <span class="tag">onzichtbaar</span>' : '')}${raw(isPartTime(e.workdays) ? html`<br><span class="tag blue" title="Vaste werkdagen">parttime: ${wdText(e.workdays)}</span>` : '')}</td><td>${STORE_NAMES[e.store_code]}</td>
       <td class="r">${b.set ? dnum(b.entitlement) : html`<span class="warn-text">—</span>`}</td>
       <td class="r">${dnum(b.carry_in)}</td>
       <td class="r">${dnum(b.vakantie)}${raw(Number(b.vakantie_gepland) ? html`<br><span class="muted small">${dnum(b.vakantie_gepland)} gepland</span>` : '')}</td>
@@ -67,7 +73,7 @@ function saldo(body, ov, rerender) {
   if ($('#vHidden', body)) $('#vHidden', body).onchange = e => { showHidden = e.target.checked; rerender(); };
   body.onclick = async e => {
     const add = e.target.closest('[data-add]'), set = e.target.closest('[data-set]'), emp = e.target.closest('[data-emp]');
-    if (emp && await editEmployee(ov.employees.find(x => x.id === +emp.dataset.emp), ov)) rerender();
+    if (emp && await openDossier(ov.employees.find(x => x.id === +emp.dataset.emp), ov)) rerender();
     const ed = e.target.closest('[data-ledit]'), del = e.target.closest('[data-ldel]');
     if (add && await editLeave({ employee_id: +add.dataset.add }, ov.employees)) rerender();
     if (set && await settings(ov.employees.find(x => x.id === +set.dataset.set))) rerender();
@@ -260,22 +266,9 @@ async function editEmployee(e, ov) {
   if (!res) return false;
   if (res === 'delete') return deleteEmployee(e, ov);
   try {
-    await adminCall('pos_admin_employee_upsert', { p: res });
-    toast(isNew ? `${res.name} is toegevoegd.` : 'Opgeslagen.', 'ok');
+    const r = await adminCall('pos_admin_employee_upsert', { p: res });
+    toast(isNew ? `${res.name} is toegevoegd. Vul nu de gegevens en het salaris in.` : 'Opgeslagen.', 'ok', 5000);
     refreshCatalog();
-    return true;
+    return isNew && r && r.id ? r.id : true;
   } catch (err) { alertBox('Niet opgeslagen', err.message); return false; }
-}
-
-async function deleteEmployee(e, ov) {
-  const nLeave = ov ? ov.leave.filter(l => l.employee_id === e.id).length : 0;
-  const ok = await confirmBox('Medewerker verwijderen',
-    `${e.name} definitief verwijderen? Al het verlof (alle jaren) en alle gewerkte dagen van ${e.name} worden ook gewist${nLeave ? ` (alleen al dit jaar ${nLeave} keer verlof)` : ''}. Dit kan niet ongedaan worden gemaakt.\n\nWerkt ${e.name} alleen niet meer? Kies dan liever "Annuleren" en zet ${e.name} op onzichtbaar; dan blijft alles bewaard.`,
-    'Definitief verwijderen', 'danger');
-  if (!ok) return false;
-  try {
-    await adminCall('pos_admin_employee_delete', { p_id: e.id });
-    toast(`${e.name} is verwijderd.`, 'ok'); refreshCatalog();
-    return true;
-  } catch (err) { alertBox('Niet verwijderd', err.message); return false; }
 }

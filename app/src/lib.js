@@ -13,6 +13,17 @@ export const local = window.pos ? window.pos : {
     if (w) { w.document.write(html); w.document.close(); w.print(); }
     return { ok: true };
   },
+  // browser/telefoon: afdrukvenster; kies daar "Opslaan als PDF"
+  savePdf: async (html, filename) => {
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(f);
+    f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+    await new Promise(r => setTimeout(r, 300));
+    f.contentWindow.focus(); f.contentWindow.print();
+    setTimeout(() => f.remove(), 60000);
+    return { ok: true };
+  },
   appInfo: async () => ({ version: 'browser', packaged: false }),
   installUpdate: async () => {}, setUpdateSource: async () => false, checkUpdate: async () => ({ ok: false, reason: 'Alleen in het Windows-programma' }), onUpdate: () => {}, onCloseRequest: () => {}, closeApp: async () => window.close()
 };

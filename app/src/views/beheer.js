@@ -4,10 +4,11 @@ import { local, rpc, html, raw, esc, $, $$, srd, num, round2, parseAmount, toast
          attachSuggest, searchProducts, isNet, fmtDate, fmtDateTime, isoDay, STORE_NAMES, LOCATION_NAMES, METHOD_NAMES } from '../lib.js';
 import { saleReceipt, testReceipt } from '../receipt.js';
 import { verlofSection } from './beheer-verlof.js';
+import { salarisSection } from './beheer-salaris.js';
 
 const SECTIONS = [
   ['overzicht', 'Overzicht'], ['dashboard', 'Dashboard'], ['transacties', 'Transacties'], ['artikelen', 'Artikelen'],
-  ['voorraad', 'Voorraad'], ['meldingen', 'Meldingen'], ['afsluitingen', 'Dagafsluitingen'], ['verlof', 'Personeel & verlof'], ['instellingen', 'Instellingen']
+  ['voorraad', 'Voorraad'], ['meldingen', 'Meldingen'], ['afsluitingen', 'Dagafsluitingen'], ['verlof', 'Personeel & verlof'], ['salaris', 'Salaris'], ['instellingen', 'Instellingen']
 ];
 const KIND_NL = { sale: 'Verkoop', balance: 'Restbetaling', cash_out: 'Kas uit' };
 const PKIND = { receive: 'Ontvangen', transfer: 'Uit magazijn', new_item: 'Nieuw artikel' };
@@ -439,7 +440,7 @@ export function create(root) {
           <p class="small" id="iUpdState"></p>
           <div class="btn-row"><button class="btn" id="iRepoSave">Opslaan</button><button class="btn ghost" id="iUpdCheck">Nu controleren</button></div></div>
         <div class="card"><h2>Back-up</h2>
-          <p class="muted small">Download alle gegevens (verkopen, voorraad, artikelen, klanten) als één bestand en bewaar het op een USB-stick of in Google Drive. Doe dit minstens één keer per week.</p>
+          <p class="muted small">Download alle gegevens (verkopen, voorraad, artikelen, klanten, personeel en salaris) als één bestand en bewaar het op een USB-stick of in Google Drive. Het bestand bevat ook bankgegevens en salarissen: bewaar het op een veilige plek. Doe dit minstens één keer per week.</p>
           <button class="btn primary" id="iBackup">Back-up downloaden</button></div>
         <div class="card"><h2>Pincodes wijzigen</h2>
           <label>Welke<select id="iPinT"><option value="MAH">Kassa Mahony</option><option value="IND">Kassa Indira</option><option value="ADMIN">Beheerder (uzelf)</option></select></label>
@@ -454,6 +455,7 @@ export function create(root) {
     try { const st = await rpc('pos_status'); $('#iRepo', main).value = st.update_repo || ''; } catch {}
     $('#iBackup', main).onclick = async () => {
       const data = await adminCall('pos_admin_export');
+      try { Object.assign(data, await adminCall('pos_admin_export_salaris')); } catch {}
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
       a.download = `superphoto-backup-${isoDay()}.json`; a.click();
@@ -495,7 +497,7 @@ export function create(root) {
     $('#iStaff', main).onclick = () => go('verlof');
   }
 
-  const RENDER = { overzicht, dashboard, transacties, artikelen, voorraad, meldingen, afsluitingen, verlof: () => verlofSection(main), instellingen };
+  const RENDER = { overzicht, dashboard, transacties, artikelen, voorraad, meldingen, afsluitingen, verlof: () => verlofSection(main), salaris: () => salarisSection(main), instellingen };
   locked();
   return { show() { go(section); }, locked };
 }

@@ -64,6 +64,22 @@ ipcMain.handle('print:receipt', async (_e, { html, widthMm, printer }) => {
   }
 });
 
+// ---------- PDF opslaan (loonstrook) ----------
+ipcMain.handle('print:pdf', async (_e, { html, filename }) => {
+  const pw = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+  try {
+    await pw.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pw.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { marginType: 'default' } });
+    const { dialog } = require('electron');
+    const safe = String(filename || 'document.pdf').replace(/[\\/:*?"<>|]+/g, '-');
+    const r = await dialog.showSaveDialog(win, { title: 'PDF opslaan', defaultPath: path.join(app.getPath('documents'), safe), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, reason: 'cancelled' };
+    fs.writeFileSync(r.filePath, data);
+    shell.showItemInFolder(r.filePath);
+    return { ok: true, path: r.filePath };
+  } finally { if (!pw.isDestroyed()) pw.destroy(); }
+});
+
 // ---------- updates ----------
 let updater = null;
 function setupUpdates() {

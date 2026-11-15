@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('pos', {
   },
   printers: () => ipcRenderer.invoke('print:list'),
   printReceipt: (html, widthMm, printer) => ipcRenderer.invoke('print:receipt', { html, widthMm, printer }),
+  savePdf: (html, filename) => ipcRenderer.invoke('print:pdf', { html, filename }),
   appInfo: () => ipcRenderer.invoke('app:info'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
