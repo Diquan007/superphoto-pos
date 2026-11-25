@@ -22,6 +22,8 @@ function frame(store, inner) {
     <div class="c">Tel: ${esc(store.phone || '')}</div>
     <div class="hr"></div>${inner}</body></html>`;
 }
+// Alleen de voornaam van de medewerker op de bon
+const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
 const row = (l, r, cls = '') => `<div class="row ${cls}"><span>${esc(l)}</span><span>${esc(r)}</span></div>`;
 
 function head(sale, provisional) {
@@ -61,7 +63,7 @@ export function saleReceipt(store, sale, { provisional = null, copy = false } = 
   else if (Number(sale.outstanding) > 0.004) s += row('Nog te betalen', num(sale.outstanding), 'b');
   if (sale.comment) s += `<div class="note">${esc(sale.comment)}</div>`;
   s += '<div class="hr"></div>';
-  if (sale.staff) s += `<div class="c">Geholpen door: ${esc(sale.staff)}</div>`;
+  if (sale.staff) s += `<div class="c">Geholpen door: ${esc(firstName(sale.staff))}</div>`;
   s += '<div class="c" style="margin-top:6px">Bedankt voor uw bezoek!</div>';
   if (sale.pickup_at || open > 0.004) s += '<div class="c">Bewaar deze bon voor het afhalen.</div>';
   return frame(store, s);
@@ -82,7 +84,7 @@ export function balanceReceipt(store, pay, order) {
   }
   s += row('Nog te betalen', num(order.outstanding), 'b');
   s += '<div class="hr"></div>';
-  if (pay.staff) s += `<div class="c">Geholpen door: ${esc(pay.staff)}</div>`;
+  if (pay.staff) s += `<div class="c">Geholpen door: ${esc(firstName(pay.staff))}</div>`;
   s += '<div class="c" style="margin-top:6px">Bedankt voor uw bezoek!</div>';
   return frame(store, s);
 }
@@ -94,7 +96,7 @@ export function cashOutReceipt(store, sale, provisional) {
   s += `<div class="note">${esc(sale.comment || '')}</div>`;
   s += row('Bedrag SRD', num(-Number(sale.total)), 'b big');
   s += '<div class="hr"></div>';
-  s += row('Door:', sale.staff || '');
+  s += row('Door:', firstName(sale.staff));
   s += '<div style="margin-top:14px">Handtekening:</div><div style="border-bottom:1px solid #000;height:22px"></div>';
   return frame(store, s);
 }
@@ -104,7 +106,7 @@ export function closeReceipt(store, c) {
   let s = '<div class="c b">DAGAFSLUITING</div>';
   s += row('Winkel:', STORE_NAMES[store.code] || store.code);
   s += row('Datum:', fmtDateTime(c.closed_at));
-  s += row('Door:', c.staff || '');
+  s += row('Door:', firstName(c.staff));
   s += '<div class="hr"></div>';
   s += row('Geteld contant SRD', num(c.counted_cash), 'b');
   s += row('Stand DNP-teller', String(c.dnp_counter), 'b');
